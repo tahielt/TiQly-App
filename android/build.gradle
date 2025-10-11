@@ -1,0 +1,49 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    // Definición de versiones de SDK y herramientas (Crucial para el módulo 'app')
+    ext {
+        minSdkVersion = 24
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "25.1.8937393"
+        kotlinVersion = "1.9.22"     
+        buildToolsVersion = "34.0.0" 
+    }
+
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+    }
+    
+    dependencies {
+        // Android Gradle Plugin (AGP) 
+        classpath("com.android.tools.build:gradle:8.2.2") 
+        // Plugin de Kotlin 
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
+        // Google Services (Para Firebase)
+        classpath("com.google.gms:google-services:4.4.1")
+        
+        // ¡IMPORTANTE! Eliminamos el classpath que estaba fallando (com.facebook.react:react-gradle-plugin), 
+        // ya que la aplicación usará 'apply from' para cargar la lógica de compilación.
+    }
+}
+
+allprojects {
+    repositories {
+        // Repositorio local de React Native (crucial para dependencias)
+        maven {
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        // Repositorio de Expo (CRUCIAL para dependencias nativas)
+        maven { url 'https://repo.expo.dev/maven' }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

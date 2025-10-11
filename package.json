@@ -1,23 +1,48 @@
 {
-  "name": "tiqly_app",
-  "version": "1.0.0",
-  "main": "index.ts",
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
   "dependencies": {
-    "expo": "~53.0.22",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.0.0",
-    "react-native": "0.79.6"
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/netinfo": "11.3.1",
+    "@react-native-firebase/app": "18.9.0",
+    "@react-native-firebase/auth": "18.9.0",
+    "@react-navigation/native": "^7.1.18",
+    "@react-navigation/native-stack": "^7.3.27",
+    "@reown/appkit": "^1.0.0",
+    "@tanstack/react-query": "^5.87.4",
+    "@walletconnect/ethereum-provider": "^2.21.8",
+    "@web3modal/ethereum": "^2.7.1",
+    "expo": "~51.0.39",
+    "expo-camera": "^17.0.8",
+    "expo-constants": "~16.0.2",
+    "expo-font": "~12.0.10",
+    "expo-image-picker": "~15.1.0",
+    "viem": "^2.37.5",
+    "wagmi": "^2.16.9"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@types/react": "~19.0.10",
-    "typescript": "~5.8.3"
+    "@babel/core": "^7.2.0",
+    "@react-navigation/bottom-tabs": "^7.4.8",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^24.4.0",
+    "@types/react": "~18.2.45",
+    "@types/react-native": "^0.73.0",
+    "@types/react-native-vector-icons": "^6.4.18",
+    "@types/react-navigation": "^3.0.8",
+    "@types/uuid": "^10.0.0",
+    "@walletconnect/types": "^2.10.2",
+    "babel-plugin-module-resolver": "latest",
+    "babel-plugin-transform-inline-environment-variables": "latest",
+    "typescript": "~5.3.3"
   },
-  "private": true
+  "name": "tiqly-app",
+  "version": "1.0.0",
+  "scripts": {
+    "android": "node scripts/load-env.js && expo run:android",
+    "ios": "node scripts/load-env.js && expo run:ios",
+    "start": "node scripts/load-env.js && expo start",
+    "eject": "expo eject",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "test": "jest",
+    "env:setup": "node scripts/setup-env.js",
+    "env:check": "node scripts/check-env.js"
+  }
 }
