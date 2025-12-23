@@ -36,3 +36,11 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Next.js (tiqly-web)
+.next/
+out/
+build/
+
+# Vercel
+.vercel
