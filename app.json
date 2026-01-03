@@ -1,77 +1,34 @@
 {
   "expo": {
-    "name": "Tiqly_APP",
-    "slug": "Tiqly_APP",
+    "name": "TiQly",
+    "slug": "tiqly-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "tiqlyapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tiqly.app",
-      "config": {
-        "googleMapsApiKey": ""
-      },
-      "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Esta aplicación necesita acceso a tu ubicación para mostrarte eventos cercanos.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Esta aplicación necesita acceso a tu ubicación para mostrarte eventos cercanos, incluso cuando la aplicación está en segundo plano.",
-        "NSCameraUsageDescription": "Esta aplicación necesita acceso a la cámara para que puedas subir fotos de tus eventos.",
-        "NSPhotoLibraryUsageDescription": "Esta aplicación necesita acceso a tu galería de fotos para que puedas subir imágenes de tus eventos."
-      }
+      "bundleIdentifier": "app.tiqly.mobile"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "package": "com.tiqly.app",
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": ""
-        }
-      }
+      "package": "app.tiqly.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "La aplicación necesita acceso a tus fotos para que puedas compartir imágenes en los eventos.",
-          "cameraPermission": "La aplicación necesita acceso a tu cámara para que puedas tomar fotos para los eventos."
-        }
-      ]
-    ],
-    "extra": {
-      "firebaseApiKey": "your_api_key",
-      "firebaseAuthDomain": "your_project_id.firebaseapp.com",
-      "firebaseProjectId": "your_project_id",
-      "firebaseStorageBucket": "your_project_id.appspot.com",
-      "firebaseMessagingSenderId": "your_messaging_sender_id",
-      "firebaseAppId": "your_app_id",
-      "firebaseMeasurementId": "your_measurement_id",
-      "mapboxAccessToken": "your_mapbox_access_token",
-      "mercadoPagoPublicKey": "@MERCADOPAGO_PUBLIC_KEY",
-      "apiUrl": "your_api_url",
-      "stripePublishableKey": "your_stripe_publishable_key"
     }
   }
 }

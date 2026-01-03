@@ -4,9 +4,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store/store';
-import { 
-  RootStackParamList, 
-  MainTabParamList, 
+import {
+  RootStackParamList,
+  MainTabParamList,
   // UserRole, // Eliminada, ya que no se usa y generaba una advertencia.
   OrgEventosStackParamList,
   AttEventosStackParamList,
@@ -25,12 +25,16 @@ import {
 import { checkAuthStatus } from '../features/auth/authSlice';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { PlaceholderScreen } from '../screens/PlaceholderScreen';
+import EventDetailScreen from '../screens/att/eventos/EventDetailScreen';
+import HomeScreen from '../screens/HomeScreen';
+import MyTicketsScreen from '../screens/att/tickets/MyTicketsScreen';
 
 // Pantallas de carga y autenticación (Temporales)
-const LoadingScreen = () => <></>;
-const LegalScreen = () => <></>;
-const AuthScreen = () => <></>;
-const RoleGateScreen = () => <></>;
+const LoadingScreen = PlaceholderScreen;
+const LegalScreen = PlaceholderScreen;
+const AuthScreen = PlaceholderScreen;
+const RoleGateScreen = PlaceholderScreen;
 
 // TEMPORAL: Placeholder para SocialNavigator (Eliminar/reemplazar cuando se solucione la importación real)
 const SocialNavigator = () => {
@@ -38,20 +42,21 @@ const SocialNavigator = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {/* CORRECCIÓN: Usamos un nombre de ruta genérico para evitar error de tipado 'SocialHome' */}
-      <Stack.Screen name="SocialPlaceholder" component={() => <></>} />
+      <Stack.Screen name="SocialPlaceholder" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
 
 
 // Stacks para cada sección
+// Stacks para cada sección
 const OrgEventosStack = () => {
   const Stack = createStackNavigator<OrgEventosStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OrgEventosHome" component={() => <></>} />
-      <Stack.Screen name="OrgEventoDetalle" component={() => <></>} />
-      <Stack.Screen name="OrgCrearEvento" component={() => <></>} />
+      <Stack.Screen name="OrgEventosHome" component={PlaceholderScreen} />
+      <Stack.Screen name="OrgEventoDetalle" component={PlaceholderScreen} />
+      <Stack.Screen name="OrgCrearEvento" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -60,8 +65,8 @@ const AttEventosStack = () => {
   const Stack = createStackNavigator<AttEventosStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AttEventosHome" component={() => <></>} />
-      <Stack.Screen name="AttEventoDetalle" component={() => <></>} />
+      <Stack.Screen name="AttEventosHome" component={HomeScreen} />
+      <Stack.Screen name="AttEventoDetalle" component={EventDetailScreen} />
     </Stack.Navigator>
   );
 };
@@ -71,8 +76,8 @@ const OrgMapaStack = () => {
   const Stack = createStackNavigator<OrgMapaStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OrgMapaHome" component={() => <></>} />
-      <Stack.Screen name="OrgMapaDetalle" component={() => <></>} />
+      <Stack.Screen name="OrgMapaHome" component={PlaceholderScreen} />
+      <Stack.Screen name="OrgMapaDetalle" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -81,8 +86,8 @@ const AttMapaStack = () => {
   const Stack = createStackNavigator<AttMapaStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AttMapaHome" component={() => <></>} />
-      <Stack.Screen name="AttMapaDetalle" component={() => <></>} />
+      <Stack.Screen name="AttMapaHome" component={PlaceholderScreen} />
+      <Stack.Screen name="AttMapaDetalle" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -92,8 +97,8 @@ const OrgTicketsStack = () => {
   const Stack = createStackNavigator<OrgTicketsStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OrgTicketsHome" component={() => <></>} />
-      <Stack.Screen name="OrgValidarTicket" component={() => <></>} />
+      <Stack.Screen name="OrgTicketsHome" component={PlaceholderScreen} />
+      <Stack.Screen name="OrgValidarTicket" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -102,8 +107,8 @@ const AttTicketsStack = () => {
   const Stack = createStackNavigator<AttTicketsStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AttTicketsHome" component={() => <></>} />
-      <Stack.Screen name="AttTicketDetalle" component={() => <></>} />
+      <Stack.Screen name="AttTicketsHome" component={MyTicketsScreen} />
+      <Stack.Screen name="AttTicketDetalle" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -113,8 +118,8 @@ const OrgTranspStack = () => {
   const Stack = createStackNavigator<OrgTranspStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OrgTranspHome" component={() => <></>} />
-      <Stack.Screen name="OrgTranspDetalle" component={() => <></>} />
+      <Stack.Screen name="OrgTranspHome" component={PlaceholderScreen} />
+      <Stack.Screen name="OrgTranspDetalle" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -123,8 +128,8 @@ const AttTranspStack = () => {
   const Stack = createStackNavigator<AttTranspStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AttTranspHome" component={() => <></>} />
-      <Stack.Screen name="AttTranspDetalle" component={() => <></>} />
+      <Stack.Screen name="AttTranspHome" component={PlaceholderScreen} />
+      <Stack.Screen name="AttTranspDetalle" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -134,9 +139,9 @@ const CuentaStack = () => {
   const Stack = createStackNavigator<CuentaStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CuentaHome" component={() => <></>} />
-      <Stack.Screen name="Ajustes" component={() => <></>} />
-      <Stack.Screen name="Perfil" component={() => <></>} />
+      <Stack.Screen name="CuentaHome" component={PlaceholderScreen} />
+      <Stack.Screen name="Ajustes" component={PlaceholderScreen} />
+      <Stack.Screen name="Perfil" component={PlaceholderScreen} />
     </Stack.Navigator>
   );
 };
@@ -151,13 +156,13 @@ const MainTabs = () => {
 
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen 
-        name="Eventos" 
-        component={isOrg ? OrgEventosStack : AttEventosStack} 
+      <Tab.Screen
+        name="Eventos"
+        component={isOrg ? OrgEventosStack : AttEventosStack}
       />
-      <Tab.Screen 
-        name="Social" 
-        component={SocialNavigator} 
+      <Tab.Screen
+        name="Social"
+        component={SocialNavigator}
         options={{
           title: 'Social',
           tabBarIcon: ({ color, size }) => (
@@ -165,21 +170,21 @@ const MainTabs = () => {
           ),
         }}
       />
-      <Tab.Screen 
-        name="Mapa" 
-        component={isOrg ? OrgMapaStack : AttMapaStack} 
+      <Tab.Screen
+        name="Mapa"
+        component={isOrg ? OrgMapaStack : AttMapaStack}
       />
-      <Tab.Screen 
-        name="Tickets" 
-        component={isOrg ? OrgTicketsStack : AttTicketsStack} 
+      <Tab.Screen
+        name="Tickets"
+        component={isOrg ? OrgTicketsStack : AttTicketsStack}
       />
-      <Tab.Screen 
-        name="Transporte" 
-        component={isOrg ? OrgTranspStack : AttTranspStack} 
+      <Tab.Screen
+        name="Transporte"
+        component={isOrg ? OrgTranspStack : AttTranspStack}
       />
-      <Tab.Screen 
-        name="Cuenta" 
-        component={CuentaStack} 
+      <Tab.Screen
+        name="Cuenta"
+        component={CuentaStack}
       />
     </Tab.Navigator>
   );
@@ -188,7 +193,7 @@ const MainTabs = () => {
 export const AppNavigator = () => {
   const dispatch = useDispatch<AppDispatch>();
   // Removida la desestructuración de 'user' ya que no se usa aquí.
-  const { isAuthenticated, isLoading } = useSelector((state: RootState) => state.auth); 
+  const { isAuthenticated, isLoading } = useSelector((state: RootState) => state.auth);
   const [isAppReady, setIsAppReady] = useState(false);
 
   // Verificar estado de autenticación al cargar

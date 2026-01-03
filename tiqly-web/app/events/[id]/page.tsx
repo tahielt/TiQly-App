@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Event } from "@/types";
@@ -25,8 +25,8 @@ function formatPrice(price: number): string {
     }).format(price);
 }
 
-export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function EventDetailPage({ params }: { params: { id: string } }) {
+    const { id } = params;
     const router = useRouter();
     const [event, setEvent] = useState<Event | null>(null);
     const [isLoading, setIsLoading] = useState(true);
