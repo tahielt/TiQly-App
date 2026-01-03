@@ -55,7 +55,7 @@ const EventDetailScreen = () => {
                     '¡Compra Exitosa!',
                     'Tu entrada ha sido guardada en Mis Tickets.',
                     [
-                        { text: 'Ver Tickets', onPress: () => navigation.navigate('Tickets', { screen: 'AttTicketsHome' }) },
+                        { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
                         { text: 'OK' }
                     ]
                 );

@@ -27,6 +27,7 @@ import { PlaceholderScreen } from '../screens/PlaceholderScreen';
 import EventDetailScreen from '../screens/att/eventos/EventDetailScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MyTicketsScreen from '../screens/att/tickets/MyTicketsScreen';
+import TicketDetailScreen from '../screens/att/tickets/TicketDetailScreen';
 import CreateEventScreen from '../screens/org/eventos/CreateEventScreen';
 import ProfileScreen from '../screens/perfil/ProfileScreen';
 import MapScreen from '../screens/map/MapScreen';
@@ -95,7 +96,7 @@ const AttTicketsStack = () => {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AttTicketsHome" component={MyTicketsScreen} />
-      <Stack.Screen name="AttTicketDetalle" component={PlaceholderScreen} />
+      <Stack.Screen name="AttTicketDetalle" component={TicketDetailScreen} />
     </Stack.Navigator>
   );
 };
