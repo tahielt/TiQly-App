@@ -1,479 +1,365 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  ScrollView,
-  Alert,
-  ActivityIndicator
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../../store/store';
-import * as ImagePicker from 'expo-image-picker';
-import { Event, EventType, EventLocation, EventTicketType } from '../../../types/event';
-import { createEvent, uploadEventImage } from '../../../services/eventService';
-import { colors, spacing, typography } from '../../../theme';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
+import { saveEvent } from '../../../lib/mock-data';
+import MapView from '../../../components/MapView';
 
 const CreateEventScreen = () => {
-  const navigation = useNavigation();
-  const { user } = useSelector((state: RootState) => state.auth);
-
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [eventType, setEventType] = useState<EventType>('public');
-  const [category, setCategory] = useState('');
-  const [coverImage, setCoverImage] = useState<string | null>(null);
-  
-  // Fecha y hora
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-
-  // Ubicación
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [venue, setVenue] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-
-  // Tickets
-  const [ticketName, setTicketName] = useState('General');
-  const [ticketPrice, setTicketPrice] = useState('');
-  const [ticketQuantity, setTicketQuantity] = useState('');
-
+  const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería');
-      return;
-    }
+  // Form State
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    category: 'Fiesta Electrónica',
+    startDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+    startTime: '22:00',
+    price: '',
+    address: '',
+    city: 'Bariloche',
+    latitude: '-41.133',
+    longitude: '-71.310'
+  });
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setCoverImage(result.assets[0].uri);
-    }
-  };
-
-  const handleCreateEvent = async () => {
-    // Validaciones
-    if (!title.trim()) {
-      Alert.alert('Error', 'El título es requerido');
-      return;
-    }
-
-    if (!description.trim()) {
-      Alert.alert('Error', 'La descripción es requerida');
-      return;
-    }
-
-    if (!address.trim() || !city.trim()) {
-      Alert.alert('Error', 'La ubicación es requerida');
-      return;
-    }
-
-    if (!latitude || !longitude) {
-      Alert.alert('Error', 'Las coordenadas son requeridas');
-      return;
-    }
-
-    if (!ticketPrice || !ticketQuantity) {
-      Alert.alert('Error', 'Debes agregar al menos un tipo de entrada');
-      return;
-    }
-
-    if (!user) {
-      Alert.alert('Error', 'Debes iniciar sesión');
+  const handleCreate = async () => {
+    if (!form.title || !form.price || !form.address) {
+      Alert.alert('Error', 'Por favor completa los campos obligatorios');
       return;
     }
 
     setLoading(true);
 
-    try {
-      const location: EventLocation = {
-        address,
-        city,
-        venue,
+    // Mock ID generation
+    const newEvent = {
+      id: `evt_${Date.now()}`,
+      title: form.title,
+      description: form.description,
+      category: form.category,
+      startDate: new Date(`${form.startDate}T${form.startTime}:00`),
+      endDate: new Date(`${form.startDate}T06:00:00`), // @fox HORA DE FIN DE EVENTO  Mock end time
+      price: parseInt(form.price),
+      location: {
+        address: form.address,
+        city: form.city,
         coordinates: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude)
+          latitude: parseFloat(form.latitude),
+          longitude: parseFloat(form.longitude)
         }
-      };
+      },
+      organizerId: 'org_1',
+      organizerName: 'Electronic Hub',
+      coverImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200', // Default image
+      status: 'published',
+      attendeeCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ticketTypes: [{ id: 't1', name: 'General', price: parseInt(form.price), quantity: 100, available: 100 }]
+    };
 
-      const ticketType: EventTicketType = {
-        id: 'general',
-        name: ticketName,
-        price: parseFloat(ticketPrice),
-        quantity: parseInt(ticketQuantity),
-        available: parseInt(ticketQuantity),
-        saleStartDate: startDate,
-        saleEndDate: endDate
-      };
-
-      const eventData: Omit<Event, 'id' | 'createdAt' | 'updatedAt'> = {
-        title,
-        description,
-        organizerId: user.id,
-        organizerName: user.name,
-        type: eventType,
-        status: 'published',
-        location,
-        startDate,
-        endDate,
-        gallery: [],
-        ticketTypes: [ticketType],
-        attendeeCount: 0,
-        tags: [],
-        category: category || 'Música Electrónica'
-      };
-
-      const event = await createEvent(eventData);
-
-      // Subir imagen de portada si existe
-      if (coverImage) {
-        const imageUrl = await uploadEventImage(event.id, coverImage, 'cover');
-        console.log('Cover image uploaded:', imageUrl);
-      }
-
-      Alert.alert(
-        'Éxito',
-        'Evento creado correctamente',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
-    } catch (error) {
-      console.error('Error creating event:', error);
-      Alert.alert('Error', 'No se pudo crear el evento');
-    } finally {
+    // Simulate network delay
+    setTimeout(async () => {
+      const success = await saveEvent(newEvent);
       setLoading(false);
-    }
+      if (success) {
+        Alert.alert('¡Evento Creado!', 'Tu evento ya está disponible en el mapa.', [
+          { text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Eventos' }) }
+        ]);
+      } else {
+        Alert.alert('Error', 'Hubo un problema al guardar el evento.');
+      }
+    }, 1500);
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Crear Evento</Text>
-
-      <Text style={styles.label}>Título *</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Nombre del evento"
-        placeholderTextColor={colors.textSecondary}
-      />
-
-      <Text style={styles.label}>Descripción *</Text>
-      <TextInput
-        style={[styles.input, styles.textArea]}
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Describe tu evento"
-        placeholderTextColor={colors.textSecondary}
-        multiline
-        numberOfLines={4}
-      />
-
-      <Text style={styles.label}>Tipo de Evento *</Text>
-      <View style={styles.typeContainer}>
-        {(['public', 'private'] as EventType[]).map((type) => (
-          <TouchableOpacity
-            key={type}
-            style={[
-              styles.typeButton,
-              eventType === type && styles.typeButtonActive
-            ]}
-            onPress={() => setEventType(type)}
-          >
-            <Text style={[
-              styles.typeButtonText,
-              eventType === type && styles.typeButtonTextActive
-            ]}>
-              {type === 'public' ? '🌐 Público' : '🔒 Privado (Con invitación)'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="close" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Crear Evento</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <Text style={styles.label}>Categoría</Text>
-      <TextInput
-        style={styles.input}
-        value={category}
-        onChangeText={setCategory}
-        placeholder="Ej: Música Electrónica, Concierto"
-        placeholderTextColor={colors.textSecondary}
-      />
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Cover Image Placeholder */}
+        <TouchableOpacity style={styles.imageUpload}>
+          <Ionicons name="image-outline" size={40} color="#666" />
+          <Text style={styles.uploadText}>Subir Portada</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>📅 Fecha y Hora</Text>
-
-      <Text style={styles.label}>Inicio *</Text>
-      <TouchableOpacity 
-        style={styles.dateButton}
-        onPress={() => setShowStartPicker(true)}
-      >
-        <Text>{startDate.toLocaleString()}</Text>
-      </TouchableOpacity>
-
-      {showStartPicker && (
-        <DateTimePicker
-          value={startDate}
-          mode="datetime"
-          onChange={(event, date) => {
-            setShowStartPicker(false);
-            if (date) setStartDate(date);
-          }}
-        />
-      )}
-
-      <Text style={styles.label}>Fin *</Text>
-      <TouchableOpacity 
-        style={styles.dateButton}
-        onPress={() => setShowEndPicker(true)}
-      >
-        <Text>{endDate.toLocaleString()}</Text>
-      </TouchableOpacity>
-
-      {showEndPicker && (
-        <DateTimePicker
-          value={endDate}
-          mode="datetime"
-          onChange={(event, date) => {
-            setShowEndPicker(false);
-            if (date) setEndDate(date);
-          }}
-        />
-      )}
-
-      <Text style={styles.sectionTitle}>📍 Ubicación</Text>
-
-      <Text style={styles.label}>Dirección *</Text>
-      <TextInput
-        style={styles.input}
-        value={address}
-        onChangeText={setAddress}
-        placeholder="Calle y número"
-        placeholderTextColor={colors.textSecondary}
-      />
-
-      <Text style={styles.label}>Ciudad *</Text>
-      <TextInput
-        style={styles.input}
-        value={city}
-        onChangeText={setCity}
-        placeholder="Ciudad"
-        placeholderTextColor={colors.textSecondary}
-      />
-
-      <Text style={styles.label}>Lugar</Text>
-      <TextInput
-        style={styles.input}
-        value={venue}
-        onChangeText={setVenue}
-        placeholder="Nombre del lugar"
-        placeholderTextColor={colors.textSecondary}
-      />
-
-      <View style={styles.row}>
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Latitud *</Text>
+        <View style={styles.form}>
+          <Text style={styles.label}>Título del Evento</Text>
           <TextInput
             style={styles.input}
-            value={latitude}
-            onChangeText={setLatitude}
-            placeholder="-34.6037"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
+            placeholder="Ej: White Party 2025"
+            placeholderTextColor="#666"
+            value={form.title}
+            onChangeText={(t) => setForm({ ...form, title: t })}
           />
-        </View>
 
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Longitud *</Text>
+          <Text style={styles.label}>Categoría</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
+            {['Fiesta Electrónica', 'Cachengue'].map((cat) => (
+              <TouchableOpacity
+                key={cat}
+                style={[styles.chip, form.category === cat && styles.chipActive]}
+                onPress={() => setForm({ ...form, category: cat })}
+              >
+                <Text style={[styles.chipText, form.category === cat && styles.chipTextActive]}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Describe tu evento..."
+            placeholderTextColor="#666"
+            multiline
+            numberOfLines={4}
+            value={form.description}
+            onChangeText={(t) => setForm({ ...form, description: t })}
+          />
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.label}>Fecha</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor="#666"
+                value={form.startDate}
+                onChangeText={(t) => setForm({ ...form, startDate: t })}
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.label}>Hora</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="HH:MM"
+                placeholderTextColor="#666"
+                value={form.startTime}
+                onChangeText={(t) => setForm({ ...form, startTime: t })}
+              />
+            </View>
+          </View>
+
+          {/* Location Picker */}
+          <Text style={styles.label}>Ubicación (Toca el mapa)</Text>
+          <View style={styles.mapContainer}>
+            <MapView
+              editable={true}
+              style={{ flex: 1 }}
+              initialLocation={{
+                latitude: parseFloat(form.latitude),
+                longitude: parseFloat(form.longitude)
+              }}
+              onLocationChange={(loc) => {
+                setForm({
+                  ...form,
+                  latitude: loc.latitude.toString(),
+                  longitude: loc.longitude.toString()
+                });
+              }}
+            />
+            <View style={styles.coordinatesOverlay}>
+              <Ionicons name="location" size={12} color="#D4FF00" />
+              <Text style={styles.coordsText}>
+                {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.label}>Dirección</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ej: Av. Bustillo 1500"
+                placeholderTextColor="#666"
+                value={form.address}
+                onChangeText={(t) => setForm({ ...form, address: t })}
+              />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+              <Text style={styles.label}>Ciudad</Text>
+              <TextInput
+                style={styles.input}
+                value={form.city}
+                onChangeText={(t) => setForm({ ...form, city: t })}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.label}>Precio de Entrada ($)</Text>
           <TextInput
             style={styles.input}
-            value={longitude}
-            onChangeText={setLongitude}
-            placeholder="-58.3816"
-            placeholderTextColor={colors.textSecondary}
+            placeholder="0"
+            placeholderTextColor="#666"
             keyboardType="numeric"
+            value={form.price}
+            onChangeText={(t) => setForm({ ...form, price: t })}
           />
         </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={[styles.createButton, loading && styles.disabledButton]}
+          onPress={handleCreate}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={styles.createButtonText}>Publicar Evento</Text>
+          )}
+        </TouchableOpacity>
       </View>
-
-      <Text style={styles.sectionTitle}>🎫 Entradas</Text>
-
-      <Text style={styles.label}>Nombre</Text>
-      <TextInput
-        style={styles.input}
-        value={ticketName}
-        onChangeText={setTicketName}
-        placeholder="Ej: General, VIP"
-        placeholderTextColor={colors.textSecondary}
-      />
-
-      <View style={styles.row}>
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Precio *</Text>
-          <TextInput
-            style={styles.input}
-            value={ticketPrice}
-            onChangeText={setTicketPrice}
-            placeholder="0.00"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-          />
-        </View>
-
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Cantidad *</Text>
-          <TextInput
-            style={styles.input}
-            value={ticketQuantity}
-            onChangeText={setTicketQuantity}
-            placeholder="100"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="numeric"
-          />
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>🖼️ Imagen de Portada</Text>
-
-      <TouchableOpacity 
-        style={styles.imageButton}
-        onPress={pickImage}
-      >
-        <Text style={styles.imageButtonText}>
-          {coverImage ? '✓ Imagen seleccionada' : '📷 Seleccionar imagen'}
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.createButton, loading && styles.disabledButton]}
-        onPress={handleCreateEvent}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.createButtonText}>Crear Evento</Text>
-        )}
-      </TouchableOpacity>
-
-      <View style={{ height: 40 }} />
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.medium,
+    backgroundColor: '#000',
   },
-  title: {
-    ...typography.h1,
-    marginBottom: spacing.large,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: '#111',
   },
-  sectionTitle: {
-    ...typography.h3,
-    marginTop: spacing.large,
-    marginBottom: spacing.medium,
+  headerTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  backButton: {
+    padding: 8,
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  imageUpload: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#111',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  uploadText: {
+    color: '#666',
+    marginTop: 8,
+  },
+  form: {
+    gap: 16,
   },
   label: {
-    ...typography.subtitle1,
-    marginBottom: spacing.small,
-    color: colors.text,
+    color: '#fff',
+    marginBottom: 8,
+    fontWeight: '600',
   },
   input: {
-    ...typography.body1,
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
+    backgroundColor: '#111',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#333',
+    borderRadius: 12,
+    padding: 16,
+    color: '#fff',
+    fontSize: 16,
   },
   textArea: {
     height: 100,
     textAlignVertical: 'top',
   },
-  typeContainer: {
-    flexDirection: 'row',
-    marginBottom: spacing.medium,
-  },
-  typeButton: {
-    flex: 1,
-    padding: spacing.medium,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.small,
-    alignItems: 'center',
-  },
-  typeButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  typeButtonText: {
-    ...typography.button,
-    color: colors.text,
-  },
-  typeButtonTextActive: {
-    color: colors.onPrimary,
-  },
-  dateButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
-  halfInput: {
-    flex: 1,
-    marginRight: spacing.small,
+  inputGroup: {
+    gap: 0,
   },
-  imageButton: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
+  categories: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#222',
+    marginRight: 8,
     borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
+    borderColor: '#333',
   },
-  imageButtonText: {
-    ...typography.button,
-    color: colors.primary,
+  chipActive: {
+    backgroundColor: '#D4FF00',
+    borderColor: '#D4FF00',
+  },
+  chipText: {
+    color: '#888',
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: '#000',
+  },
+  mapContainer: {
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#333',
+    marginBottom: 16,
+    position: 'relative',
+  },
+  coordinatesOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  coordsText: {
+    color: '#D4FF00',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  footer: {
+    padding: 20,
+    backgroundColor: '#111',
+    borderTopWidth: 1,
+    borderTopColor: '#222',
   },
   createButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    padding: spacing.medium,
+    backgroundColor: '#D4FF00',
+    padding: 16,
+    borderRadius: 30,
     alignItems: 'center',
-    marginTop: spacing.large,
   },
   disabledButton: {
-    opacity: 0.5,
+    opacity: 0.7,
   },
   createButtonText: {
-    ...typography.button,
-    color: colors.onPrimary,
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

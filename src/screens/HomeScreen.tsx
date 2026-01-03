@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getEvents } from '../lib/mock-data';
 import { Ionicons } from '@expo/vector-icons';
 
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const [events, setEvents] = useState<any[]>([]);
 
   useEffect(() => {
-    loadEvents();
-  }, []);
+    if (isFocused) {
+      loadEvents();
+    }
+  }, [isFocused]);
 
   const loadEvents = async () => {
     const data = await getEvents();
@@ -45,9 +48,14 @@ const HomeScreen = () => {
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
         <Text style={styles.logo}>Ti<Text style={{ color: '#D4FF00' }}>Q</Text>ly</Text>
-        <TouchableOpacity style={styles.iconButton}>
-          <Ionicons name="notifications-outline" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('CreateEvent')}>
+            <Ionicons name="add-circle-outline" size={24} color="#D4FF00" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Profile')}>
+            <Ionicons name="person-circle-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList

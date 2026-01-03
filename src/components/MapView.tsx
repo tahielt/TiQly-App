@@ -1,152 +1,124 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Image } from 'react-native';
-import Mapbox, { Camera, UserLocation, PointAnnotation } from '@rnmapbox/maps';
-import { Ionicons } from '@expo/vector-icons';
-import { MAPBOX_ACCESS_TOKEN, MAPBOX_STYLE, DEFAULT_LOCATION, MapLocation } from '../config/mapbox';
-import * as Location from 'expo-location';
 
-Mapbox.setAccessToken(MAPBOX_ACCESS_TOKEN);
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, Dimensions, Platform, ActivityIndicator } from 'react-native';
+import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from 'react-native-maps';
+import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 
 interface MapViewProps {
-  initialLocation?: MapLocation;
-  onLocationChange?: (location: MapLocation) => void;
+  initialLocation?: { latitude: number; longitude: number; zoom?: number };
+  onLocationChange?: (location: { latitude: number; longitude: number }) => void;
   onMarkerPress?: (eventId: string) => void;
   events?: Array<{
     id: string;
     title: string;
-    coordinates: [number, number];
+    coordinates: { latitude: number; longitude: number };
     image?: string;
   }>;
-  showUserLocation?: boolean;
+  editable?: boolean;
   style?: any;
+  routeTo?: { latitude: number; longitude: number } | null; // Destination for routing
 }
 
-export const MapView: React.FC<MapViewProps> = ({
+const CustomMapView: React.FC<MapViewProps> = ({
   initialLocation,
   onLocationChange,
   onMarkerPress,
   events = [],
-  showUserLocation = true,
+  editable = false,
   style,
+  routeTo
 }) => {
-  const camera = useRef<Camera>(null);
-  const [currentLocation, setCurrentLocation] = useState<MapLocation>(
-    initialLocation || DEFAULT_LOCATION
-  );
+  const mapRef = useRef<MapView>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [region, setRegion] = useState({
+    latitude: initialLocation?.latitude || -41.133472,
+    longitude: initialLocation?.longitude || -71.310278,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
 
   useEffect(() => {
-    if (initialLocation) {
-      setCurrentLocation(initialLocation);
-      camera.current?.setCamera({
-        centerCoordinate: [initialLocation.longitude, initialLocation.latitude],
-        zoomLevel: initialLocation.zoom || 12,
-        animationDuration: 500,
-      });
-    }
-  }, [initialLocation]);
-
-  useEffect(() => {
-    if (showUserLocation) {
-      getUserLocation();
-    }
-  }, [showUserLocation]);
-
-  const getUserLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.warn('Permiso de ubicación no otorgado');
+        console.log('Permission to access location was denied');
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      
-      if (location) {
-        const newLocation = {
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation(location.coords);
+
+      // Center on user initially if no initial location provided
+      if (!initialLocation && location.coords) {
+        setRegion({
           latitude: location.coords.latitude,
           longitude: location.coords.longitude,
-          zoom: 14,
-        };
-        setCurrentLocation(newLocation);
-        onLocationChange?.(newLocation);
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
       }
-    } catch (error) {
-      console.error('Error al obtener la ubicación:', error);
+    })();
+  }, []);
+
+  // Effect to fit elements if route is active
+  useEffect(() => {
+    if (routeTo && userLocation && mapRef.current) {
+      mapRef.current.fitToCoordinates([userLocation, routeTo], {
+        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+        animated: true
+      });
     }
-  };
+  }, [routeTo, userLocation]);
 
-  const handleMapPress = async (e: any) => {
-    const { geometry } = e;
-    const newLocation = {
-      latitude: geometry.coordinates[1],
-      longitude: geometry.coordinates[0],
-      zoom: currentLocation.zoom || 12,
-    };
-    setCurrentLocation(newLocation);
-    onLocationChange?.(newLocation);
-  };
-
-  const handleMarkerPress = (eventId: string) => {
-    onMarkerPress?.(eventId);
+  const handlePress = (e: any) => {
+    if (editable && onLocationChange) {
+      const { coordinate } = e.nativeEvent;
+      onLocationChange(coordinate);
+    }
   };
 
   return (
     <View style={[styles.container, style]}>
-      <Mapbox.MapView
+      <MapView
+        ref={mapRef}
         style={styles.map}
-        styleURL={MAPBOX_STYLE}
-        onPress={handleMapPress}
-        logoEnabled={false}
-        attributionEnabled={false}
+        provider={PROVIDER_DEFAULT}
+        initialRegion={region}
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+        onPress={handlePress}
       >
-        <Camera
-          ref={camera}
-          centerCoordinate={[currentLocation.longitude, currentLocation.latitude]}
-          zoomLevel={currentLocation.zoom || 12}
-          animationMode={'flyTo'}
-          animationDuration={0}
-        />
+        {/* Events Markers */}
+        {events.map((event) => (
+          <Marker
+            key={event.id}
+            coordinate={event.coordinates}
+            title={event.title}
+            onPress={() => onMarkerPress && onMarkerPress(event.id)}
+            pinColor="#D4FF00"
+          />
+        ))}
 
-        {showUserLocation && (
-          <UserLocation
-            visible={true}
-            showsUserHeadingIndicator={true}
+        {/* Editable Pin */}
+        {editable && initialLocation && (
+          <Marker
+            coordinate={{ latitude: initialLocation.latitude, longitude: initialLocation.longitude }}
+            pinColor="#D4FF00"
           />
         )}
 
-        {events.map((event) => (
-          <PointAnnotation
-            key={event.id}
-            id={event.id}
-            coordinate={event.coordinates}
-            onSelected={() => handleMarkerPress(event.id)}
-          >
-            <View style={styles.markerContainer}>
-              <View style={styles.marker}>
-                {event.image ? (
-                  <Image 
-                    source={{ uri: event.image }} 
-                    style={styles.markerImage} 
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.markerIcon}>
-                    <Ionicons name="location" size={20} color="white" />
-                  </View>
-                )}
-              </View>
-              <View style={styles.markerTextContainer}>
-                <Text style={styles.markerText} numberOfLines={1}>
-                  {event.title}
-                </Text>
-              </View>
-            </View>
-          </PointAnnotation>
-        ))}
-      </Mapbox.MapView>
+        {/* Route Line */}
+        {routeTo && userLocation && (
+          <Polyline
+            coordinates={[userLocation, routeTo]}
+            strokeColor="#D4FF00"
+            strokeWidth={4}
+            lineDashPattern={[1]}
+          />
+        )}
+
+      </MapView>
     </View>
   );
 };
@@ -154,56 +126,14 @@ export const MapView: React.FC<MapViewProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 12,
     overflow: 'hidden',
+    backgroundColor: '#111'
   },
   map: {
     flex: 1,
-  },
-  markerContainer: {
-    alignItems: 'center',
-  },
-  marker: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#3182CE',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  markerImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  markerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#3182CE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  markerTextContainer: {
-    backgroundColor: 'white',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
-    maxWidth: 150,
-  },
-  markerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1A202C',
+    width: '100%',
+    height: '100%',
   },
 });
 
-export default MapView;
+export default CustomMapView;

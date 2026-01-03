@@ -6,11 +6,7 @@ import { Ticket } from '../types/ticket';
 export const EVENT_CATEGORIES = [
     'Todos',
     'Fiesta Electrónica',
-    'Cachengue',
-    'Concierto',
-    'Festival',
-    'Teatro',
-    'Deportes'
+    'Cachengue'
 ];
 
 // Adapted Mock Events for Mobile
@@ -30,7 +26,7 @@ export const MOCK_EVENTS: any[] = [
         },
         startDate: new Date('2025-01-20T23:00:00Z'),
         endDate: new Date('2025-01-21T06:00:00Z'),
-        price: 25000, // Kept for simplified detail view
+        price: 25000,
         coverImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200&h=800&fit=crop',
         category: 'Fiesta Electrónica',
         tags: ['electronica', 'nightlife', 'verano'],
@@ -123,19 +119,49 @@ const STORAGE_KEYS = {
 // --- Helpers ---
 
 export const getEvents = async (): Promise<any[]> => {
-    // In a real app we might merge with stored events
-    // For MVP demo, just return mocks
-    return MOCK_EVENTS;
+    try {
+        const storedEventsStr = await AsyncStorage.getItem(STORAGE_KEYS.EVENTS);
+        let storedEvents = storedEventsStr ? JSON.parse(storedEventsStr) : [];
+
+        // Merge with mocks if storage is empty (first run) or just return combined
+        // For simplicity, let's assume we always want mocks + new ones, 
+        // avoiding duplicates if we saved mocks before.
+        // A simple strategy: ID check.
+
+        const allEvents = [...MOCK_EVENTS, ...storedEvents];
+        // Deduplicate by ID
+        const uniqueEvents = Array.from(new Map(allEvents.map(item => [item.id, item])).values());
+
+        return uniqueEvents;
+    } catch (e) {
+        console.error("Error fetching events", e);
+        return MOCK_EVENTS;
+    }
 };
 
-export const getEventById = (id: string) => {
-    return MOCK_EVENTS.find(e => e.id === id);
+export const getEventById = async (id: string) => {
+    const events = await getEvents();
+    return events.find(e => e.id === id);
+};
+
+export const saveEvent = async (event: any) => {
+    try {
+        const storedEventsStr = await AsyncStorage.getItem(STORAGE_KEYS.EVENTS);
+        const storedEvents = storedEventsStr ? JSON.parse(storedEventsStr) : [];
+
+        storedEvents.push(event);
+        await AsyncStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(storedEvents));
+        return true;
+    } catch (e) {
+        console.error("Error saving event", e);
+        return false;
+    }
 };
 
 export const getUser = async () => {
     try {
         const jsonValue = await AsyncStorage.getItem(STORAGE_KEYS.USER);
-        return jsonValue != null ? JSON.parse(jsonValue) : MOCK_USER; // Return mock user by default for ease
+        return jsonValue != null ? JSON.parse(jsonValue) : MOCK_USER;
     } catch (e) {
         return null;
     }

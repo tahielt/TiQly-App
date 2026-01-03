@@ -101,7 +101,7 @@ const EventDetailScreen = () => {
 
                     <View style={styles.infoRow}>
                         <Ionicons name="location-outline" size={20} color="#D4FF00" />
-                        <Text style={styles.infoText}>{event.location.address}, {event.location.city}</Text>
+                        <Text style={styles.infoText}>{event.location?.address || 'Sin dirección'}, {event.location?.city || ''}</Text>
                     </View>
 
                     <View style={styles.divider} />

@@ -14,6 +14,9 @@ export type RootStackParamList = {
   Auth: undefined;
   RoleGate: undefined;
   MainTabs: { screen: keyof MainTabParamList; params?: any };
+  CreateEvent: undefined;
+  Profile: undefined;
+  AttEventoDetalle: { eventId: string };
 };
 
 // Stacks para cada rol
@@ -25,7 +28,6 @@ export type OrgEventosStackParamList = {
 
 export type AttEventosStackParamList = {
   AttEventosHome: undefined;
-  AttEventoDetalle: { eventId: string };
 };
 
 export type OrgMapaStackParamList = {

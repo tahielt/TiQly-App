@@ -4,10 +4,17 @@ import { UserRole } from '../../types/navigation';
 import StorageService from '../../services/storage';
 
 const initialState: AuthState = {
-  user: null,
+  user: {
+    id: '1',
+    email: 'demo@tiqly.app',
+    name: 'Tahiel Mocha',
+    roles: ['attendee'],
+    activeRole: 'attendee',
+    token: 'mock-token'
+  },
   isLoading: false,
   error: null,
-  isAuthenticated: false,
+  isAuthenticated: true,
 };
 
 // Acciones asíncronas
@@ -15,16 +22,16 @@ export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
-      // Aquí iría la llamada a tu API de autenticación
+      // Call a la API de autenticación
       const mockUser: User = {
         id: '1',
         email: credentials.email,
-        name: 'Usuario de Prueba',
+        name: 'Tahiel Mocha',
         roles: ['attendee'],
         activeRole: 'attendee',
         token: 'mock-token-123'
       };
-      
+
       await StorageService.saveAuthData(mockUser);
       return mockUser;
     } catch (error) {
