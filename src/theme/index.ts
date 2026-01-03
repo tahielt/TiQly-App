@@ -1,26 +1,30 @@
 export const colors = {
-  primary: '#D4FF00', // Fluorescent Green
-  primaryVariant: '#B2D900',
+  primary: '#00D9FF', // Cyan/Teal accent
+  primaryVariant: '#00B8D9',
   secondary: '#FFFFFF',
   secondaryVariant: '#CCCCCC',
-  background: '#000000',
-  surface: '#111111',
+  background: '#000000', // Pure black background
+  surface: '#111111', // Very dark surface for cards
   error: '#CF6679',
-  onPrimary: '#000000', // Black text on Green button
+  onPrimary: '#000000',
   onSecondary: '#000000',
   onBackground: '#FFFFFF',
   onSurface: '#FFFFFF',
   onError: '#000000',
   text: '#FFFFFF',
   textSecondary: '#AAAAAA',
-  border: '#333333',
+  border: '#222222',
   disabled: '#666666',
   placeholder: '#666666',
-  backdrop: 'rgba(0, 0, 0, 0.7)',
+  backdrop: 'rgba(0, 0, 0, 0.9)',
   white: '#FFFFFF',
   black: '#000000',
-  success: '#03DAC6',
+  success: '#00D9FF',
   warning: '#FFC107',
+  // Brand colors
+  brandDark: '#000000',
+  brandMid: '#111111',
+  brandAccent: '#00D9FF',
 };
 
 export const spacing = {

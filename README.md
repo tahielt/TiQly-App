@@ -1,90 +1,37 @@
-# Tiqly App
+# TiQly Mobile App 🚀
 
-Aplicación móvil para la gestión de eventos de música electrónica con funcionalidades sociales, mapas y pagos.
+¡Bienvenido a la versión móvil de **TiQly**! Esta aplicación ha sido diseñada para ofrecer la mejor experiencia en la gestión y descubrimiento de eventos, ahora con funcionalidades nativas optimizadas.
 
-## 🚀 Características
+## ✨ Novedades de la Versión Móvil
 
-- Autenticación de usuarios con roles
-- Feed social con publicaciones y comentarios
-- Mapa interactivo con eventos
-- Sistema de pagos integrado
-- Perfiles de usuario personalizables
+### 📍 Mapa Nativo e Interactivo
+Hemos integrado un sistema de mapas nativo (`react-native-maps`) que permite una experiencia fluida:
+- **Visualización Real:** Olvida las capturas estáticas; ahora interactúas con un mapa vivo.
+- **Ubicación en Tiempo Real:** Visualiza tu posición actual en el mapa (punto azul).
+- **Rutas "Cómo llegar":** Al seleccionar cualquier evento, pulsa en **"Cómo llegar"** y la app trazará la ruta directa (Polyline) desde tu ubicación hasta el lugar del evento. ¡Estilo Uber! 🚗
 
-## 🛠 Configuración inicial
+### 🎨 UI/UX Premium
+- **Vistas Modernas:** Diseño basado en el branding de TiQly con colores vibrantes y modo oscuro.
+- **Carruseles Dinámicos:** Navega por los eventos destacados y categorías mediante carruseles táctiles fluidos.
+- **Categorías Simplificadas:** Nos enfocamos en lo que importa. Ahora el sistema está optimizado para **Fiesta Electrónica** y **Cachengue**.
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/tuusuario/tiqly-app.git
-   cd tiqly-app
-   ```
+### 📱 Funcionalidades MVP (Totalmente Operativo)
+La aplicación está preparada para demostraciones y pruebas inmediatas:
+- **Todo Mockeado:** No requiere configuración de base de datos externa (Firebase) para funcionar. Todo se gestiona localmente en el dispositivo.
+- **Creación de Eventos:** Interfaz intuitiva para que los organizadores creen eventos pinchando directamente en el mapa para establecer la ubicación.
+- **Gestión de Tickets:** Compra simulada de tickets y visualización en la sección "Mis Tickets" con generación de códigos QR únicos.
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+## 🛠️ Tecnologías Utilizadas
+- **Expo SDK 54** (Última versión estable)
+- **React Native Maps** para la geolocalización.
+- **React Navigation** para una navegación entre pantallas fluida.
+- **Redux Toolkit** para la gestión del estado global.
 
-3. **Configurar variables de entorno**
-   - Copiar el archivo `.env.example` a `.env`
-   - Rellenar las variables de entorno con tus credenciales
+## 🚀 Cómo Empezar
+1. Clona el repositorio.
+2. Ejecuta `npm install` para instalar las dependencias.
+3. Inicia el proyecto con `npx expo start`.
+4. Abre la app en tu dispositivo mediante Expo Go.
 
-4. **Iniciar la aplicación**
-   ```bash
-   # Para desarrollo
-   npm start
-   
-   # Plataformas específicas
-   npm run android
-   npm run ios
-   npm run web
-   ```
-
-## 🔧 Variables de entorno
-
-Crea un archivo `.env` en la raíz del proyecto con las siguientes variables:
-
-```env
-# Firebase
-FIREBASE_API_KEY=tu_api_key
-FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
-FIREBASE_PROJECT_ID=tu_proyecto_id
-FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
-FIREBASE_MESSAGING_SENDER_ID=tu_sender_id
-FIREBASE_APP_ID=tu_app_id
-FIREBASE_MEASUREMENT_ID=tu_measurement_id
-
-# Mapbox
-MAPBOX_ACCESS_TOKEN=tu_token_mapbox
-
-# Stripe
-STRIPE_PUBLISHABLE_KEY=tu_clave_publica_stripe
-
-# API
-API_URL=tu_url_api
-```
-
-## 📱 Estructura del proyecto
-
-```
-src/
-├── components/     # Componentes reutilizables
-├── config/        # Configuraciones (Firebase, Mapbox, etc.)
-├── features/      # Características principales
-│   ├── auth/      # Autenticación
-│   ├── social/    # Funcionalidades sociales
-│   ├── map/       # Mapa y ubicaciones
-│   └── payments/  # Pagos y suscripciones
-├── navigation/    # Navegación
-├── screens/       # Pantallas de la aplicación
-├── services/      # Servicios (API, Storage, etc.)
-├── types/         # Tipos TypeScript
-└── utils/         # Utilidades y helpers
-```
-
-## 📚 Documentación
-
-- [Guía de contribución](CONTRIBUTING.md)
-- [Código de conducta](CODE_OF_CONDUCT.md)
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
+---
+*Desarrollado para la mejor experiencia en eventos de Bariloche y el mundo.* 🇦🇷✨

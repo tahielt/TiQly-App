@@ -31,14 +31,14 @@ const HomeScreen = () => {
           <Text style={styles.badgeText}>{item.category}</Text>
         </View>
         <Text style={styles.date}>
-          {new Date(item.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
+          {item.startDate ? new Date(item.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase() : 'FECHA PENDIENTE'}
         </Text>
         <Text style={styles.title}>{item.title}</Text>
         <View style={styles.locationContainer}>
           <Ionicons name="location-outline" size={16} color="#666" />
           <Text style={styles.location}>{item.location.address}, {item.location.city}</Text>
         </View>
-        <Text style={styles.price}>${item.price.toLocaleString()}</Text>
+        <Text style={styles.price}>${item.price?.toLocaleString() || '0'}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -47,10 +47,10 @@ const HomeScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <Text style={styles.logo}>Ti<Text style={{ color: '#D4FF00' }}>Q</Text>ly</Text>
+        <Image source={require('../../assets/Tiqly nuevo color marca SINLOGO.png')} style={styles.logoImage} resizeMode="contain" />
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('CreateEvent')}>
-            <Ionicons name="add-circle-outline" size={24} color="#D4FF00" />
+            <Ionicons name="add-circle-outline" size={24} color="#00D9FF" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Profile')}>
             <Ionicons name="person-circle-outline" size={24} color="#fff" />
@@ -72,14 +72,18 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
+  },
+  logoImage: {
+    height: 32,
+    width: 100,
   },
   logo: {
     fontSize: 28,
@@ -96,7 +100,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   card: {
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 20,
@@ -114,7 +118,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -160,
     right: 16,
-    backgroundColor: '#D4FF00',
+    backgroundColor: '#00D9FF',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -125,7 +129,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   date: {
-    color: '#D4FF00',
+    color: '#00D9FF',
     fontWeight: '700',
     marginBottom: 4,
     fontSize: 12,

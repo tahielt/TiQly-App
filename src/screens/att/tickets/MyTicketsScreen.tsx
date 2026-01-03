@@ -54,7 +54,7 @@ const MyTicketsScreen = () => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'active':
-                return '#D4FF00';
+                return '#00D9FF';
             case 'used':
                 return '#888';
             case 'transferred':
@@ -92,25 +92,25 @@ const MyTicketsScreen = () => {
             <Text style={styles.eventTitle}>{item.eventTitle}</Text>
 
             <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={16} color="#D4FF00" />
+                <Ionicons name="calendar-outline" size={16} color="#00D9FF" />
                 <Text style={styles.infoText}>
-                    {new Date(item.eventDate).toLocaleDateString('es-AR', {
+                    {item.eventDate ? new Date(item.eventDate).toLocaleDateString('es-AR', {
                         weekday: 'short',
                         day: 'numeric',
                         month: 'short',
                         hour: '2-digit',
                         minute: '2-digit',
-                    })}
+                    }) : 'Fecha pendiente'}
                 </Text>
             </View>
 
             <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color="#D4FF00" />
+                <Ionicons name="location-outline" size={16} color="#00D9FF" />
                 <Text style={styles.infoText}>{item.eventLocation}</Text>
             </View>
 
             <View style={styles.ticketFooter}>
-                <Text style={styles.priceText}>${item.price.toLocaleString()}</Text>
+                <Text style={styles.priceText}>${item.price?.toLocaleString() || '0'}</Text>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
             </View>
         </TouchableOpacity>
@@ -156,7 +156,7 @@ const MyTicketsScreen = () => {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#D4FF00"
+                        tintColor="#00D9FF"
                     />
                 }
             />
@@ -167,7 +167,7 @@ const MyTicketsScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#000000',
     },
     header: {
         flexDirection: 'row',
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     ticketCard: {
-        backgroundColor: '#111',
+        backgroundColor: '#111111',
         borderRadius: 16,
         padding: 16,
         marginBottom: 16,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
         borderTopColor: '#222',
     },
     priceText: {
-        color: '#D4FF00',
+        color: '#00D9FF',
         fontSize: 18,
         fontWeight: 'bold',
     },
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     },
     browseButton: {
         marginTop: 30,
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         paddingHorizontal: 30,
         paddingVertical: 14,
         borderRadius: 25,

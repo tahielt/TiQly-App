@@ -96,7 +96,7 @@ const CustomMapView: React.FC<MapViewProps> = ({
             coordinate={event.coordinates}
             title={event.title}
             onPress={() => onMarkerPress && onMarkerPress(event.id)}
-            pinColor="#D4FF00"
+            pinColor="#00D9FF"
           />
         ))}
 
@@ -104,7 +104,7 @@ const CustomMapView: React.FC<MapViewProps> = ({
         {editable && initialLocation && (
           <Marker
             coordinate={{ latitude: initialLocation.latitude, longitude: initialLocation.longitude }}
-            pinColor="#D4FF00"
+            pinColor="#00D9FF"
           />
         )}
 
@@ -112,7 +112,7 @@ const CustomMapView: React.FC<MapViewProps> = ({
         {routeTo && userLocation && (
           <Polyline
             coordinates={[userLocation, routeTo]}
-            strokeColor="#D4FF00"
+            strokeColor="#00D9FF"
             strokeWidth={4}
             lineDashPattern={[1]}
           />
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
-    backgroundColor: '#111'
+    backgroundColor: '#000000'
   },
   map: {
     flex: 1,

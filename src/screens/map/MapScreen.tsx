@@ -118,7 +118,7 @@ const MapScreen = () => {
                                     <Ionicons name="location" size={12} color="#888" /> {selectedEvent.location?.address || 'Sin dirección'}
                                 </Text>
                                 <Text style={styles.selectedDate}>
-                                    {new Date(selectedEvent.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    {selectedEvent.startDate ? new Date(selectedEvent.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Fecha pendiente'}
                                 </Text>
                             </View>
                             <View style={styles.actionButtons}>
@@ -164,7 +164,7 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#000000',
     },
     map: {
         flex: 1,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     filterButton: {
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         padding: 8,
         borderRadius: 10,
     },
@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
         borderColor: 'rgba(255,255,255,0.2)',
     },
     chipActive: {
-        backgroundColor: '#D4FF00',
-        borderColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
+        borderColor: '#00D9FF',
     },
     chipText: {
         color: '#fff',
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -10,
         right: 10,
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     selectedDate: {
-        color: '#D4FF00',
+        color: '#00D9FF',
         fontSize: 12,
         fontWeight: 'bold',
         marginTop: 2,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     viewEventButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         paddingVertical: 6,
         paddingHorizontal: 12,
         borderRadius: 20,

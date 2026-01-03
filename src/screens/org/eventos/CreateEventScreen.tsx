@@ -165,7 +165,7 @@ const CreateEventScreen = () => {
               }}
             />
             <View style={styles.coordinatesOverlay}>
-              <Ionicons name="location" size={12} color="#D4FF00" />
+              <Ionicons name="location" size={12} color="#00D9FF" />
               <Text style={styles.coordsText}>
                 {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}
               </Text>
@@ -225,7 +225,7 @@ const CreateEventScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
   },
   headerTitle: {
     color: '#fff',
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   imageUpload: {
     width: '100%',
     height: 150,
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#333',
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   input: {
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderWidth: 1,
     borderColor: '#333',
     borderRadius: 12,
@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   chipActive: {
-    backgroundColor: '#D4FF00',
-    borderColor: '#D4FF00',
+    backgroundColor: '#00D9FF',
+    borderColor: '#00D9FF',
   },
   chipText: {
     color: '#888',
@@ -337,18 +337,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   coordsText: {
-    color: '#D4FF00',
+    color: '#00D9FF',
     fontSize: 10,
     fontWeight: 'bold',
   },
   footer: {
     padding: 20,
-    backgroundColor: '#111',
+    backgroundColor: '#111111',
     borderTopWidth: 1,
     borderTopColor: '#222',
   },
   createButton: {
-    backgroundColor: '#D4FF00',
+    backgroundColor: '#00D9FF',
     padding: 16,
     borderRadius: 30,
     alignItems: 'center',

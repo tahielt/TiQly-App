@@ -145,12 +145,12 @@ const MainTabs = () => {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#000',
+          backgroundColor: '#000000',
           borderTopColor: '#222',
           height: 80, // Taller tab bar
           paddingBottom: 20,
         },
-        tabBarActiveTintColor: '#D4FF00', // Fluorescent green
+        tabBarActiveTintColor: '#00D9FF', // Fluorescent green
         tabBarInactiveTintColor: '#666',
         tabBarLabelStyle: {
           fontSize: 12,
@@ -180,10 +180,10 @@ const MainTabs = () => {
                 width: 70,
                 height: 70,
                 borderRadius: 35,
-                backgroundColor: focused ? '#D4FF00' : '#222',
+                backgroundColor: focused ? '#00D9FF' : '#222',
                 justifyContent: 'center',
                 alignItems: 'center',
-                shadowColor: '#D4FF00',
+                shadowColor: '#00D9FF',
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: focused ? 0.5 : 0,
                 shadowRadius: 10,

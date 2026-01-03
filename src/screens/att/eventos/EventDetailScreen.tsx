@@ -17,10 +17,15 @@ const EventDetailScreen = () => {
         loadEvent();
     }, [eventId]);
 
-    const loadEvent = () => {
-        const data = getEventById(eventId);
-        setEvent(data);
-        setLoading(false);
+    const loadEvent = async () => {
+        try {
+            const data = await getEventById(eventId);
+            setEvent(data);
+        } catch (error) {
+            console.error("Error loading event:", error);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handlePurchase = async () => {
@@ -63,7 +68,7 @@ const EventDetailScreen = () => {
     if (loading) {
         return (
             <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#D4FF00" />
+                <ActivityIndicator size="large" color="#00D9FF" />
             </View>
         );
     }
@@ -93,14 +98,14 @@ const EventDetailScreen = () => {
                     <Text style={styles.title}>{event.title}</Text>
 
                     <View style={styles.infoRow}>
-                        <Ionicons name="calendar-outline" size={20} color="#D4FF00" />
+                        <Ionicons name="calendar-outline" size={20} color="#00D9FF" />
                         <Text style={styles.infoText}>
-                            {new Date(event.startDate).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                            {event.startDate ? new Date(event.startDate).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }) : 'Fecha pendiente'}
                         </Text>
                     </View>
 
                     <View style={styles.infoRow}>
-                        <Ionicons name="location-outline" size={20} color="#D4FF00" />
+                        <Ionicons name="location-outline" size={20} color="#00D9FF" />
                         <Text style={styles.infoText}>{event.location?.address || 'Sin dirección'}, {event.location?.city || ''}</Text>
                     </View>
 
@@ -119,7 +124,7 @@ const EventDetailScreen = () => {
             <View style={styles.footer}>
                 <View>
                     <Text style={styles.priceLabel}>Precio Final</Text>
-                    <Text style={styles.price}>${event.price.toLocaleString()}</Text>
+                    <Text style={styles.price}>${event.price?.toLocaleString() || '0'}</Text>
                 </View>
                 <TouchableOpacity
                     style={[styles.buyButton, purchasing && styles.disabledButton]}
@@ -140,13 +145,13 @@ const EventDetailScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#000000',
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#000',
+        backgroundColor: '#000000',
     },
     errorText: {
         color: '#fff',
@@ -169,7 +174,7 @@ const styles = StyleSheet.create({
     },
     badgeContainer: {
         alignSelf: 'flex-start',
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
@@ -213,7 +218,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     organizer: {
-        color: '#D4FF00',
+        color: '#00D9FF',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -222,7 +227,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#111',
+        backgroundColor: '#111111',
         padding: 20,
         paddingBottom: 40,
         flexDirection: 'row',
@@ -241,7 +246,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     buyButton: {
-        backgroundColor: '#D4FF00',
+        backgroundColor: '#00D9FF',
         paddingHorizontal: 32,
         paddingVertical: 16,
         borderRadius: 30,
