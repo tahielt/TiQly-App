@@ -3,9 +3,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase Configuration
-// Use environment variables or fallback to hardcoded values for development
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://msvqdfdewkwbqsrxruol.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_EVCdd_BFOMGgbTqNX6m1_A_YLM9Cuvo';
+// Reads from .env file (EXPO_PUBLIC_ prefix exposes to client)
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     console.error('❌ Supabase credentials missing! Check your .env file.');

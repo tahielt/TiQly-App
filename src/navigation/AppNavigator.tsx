@@ -34,6 +34,7 @@ import EventStatsScreen from '../screens/org/eventos/EventStatsScreen';
 import QRScannerScreen from '../screens/org/tickets/QRScannerScreen';
 import ProfileScreen from '../screens/perfil/ProfileScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
 
 // Pantallas de carga y autenticación (Temporales)
@@ -255,7 +256,8 @@ export const AppNavigator = () => {
           <Stack.Screen name="Loading" component={LoadingScreen} />
         ) : !isAuthenticated ? (
           <>
-            <Stack.Screen name="Auth" component={LoginScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : (
           <>

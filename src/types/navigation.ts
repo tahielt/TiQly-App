@@ -12,6 +12,8 @@ export type RootStackParamList = {
   Loading: undefined;
   Legal: undefined;
   Auth: undefined;
+  Login: undefined;
+  Register: undefined;
   RoleGate: undefined;
   MainTabs: { screen: keyof MainTabParamList; params?: any };
   CreateEvent: undefined;
@@ -24,6 +26,7 @@ export type OrgEventosStackParamList = {
   OrgEventosHome: undefined;
   OrgEventoDetalle: { eventId: string };
   OrgCrearEvento: undefined;
+  OrgEventStats: { eventId: string };
 };
 
 export type AttEventosStackParamList = {

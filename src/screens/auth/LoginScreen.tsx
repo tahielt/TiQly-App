@@ -11,33 +11,65 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
-import { useDispatch } from 'react-redux';
-import { AppDispatch } from '../../store/store';
-import { loginUser } from '../../features/auth/authSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '../../store/store';
+import { loginUser, clearError, resetPassword } from '../../features/auth/authSlice';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const LoginScreen = () => {
     const dispatch = useDispatch<AppDispatch>();
-    const [email, setEmail] = useState('demo@tiqly.app');
-    const [password, setPassword] = useState('demo123');
-    const [loading, setLoading] = useState(false);
+    const navigation = useNavigation<any>();
+    const { isLoading, error } = useSelector((state: RootState) => state.auth);
+
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = async () => {
-        setLoading(true);
+        if (!email.trim() || !password.trim()) {
+            Alert.alert('Error', 'Completá email y contraseña');
+            return;
+        }
+
         try {
             await dispatch(loginUser({ email, password })).unwrap();
-        } catch (error) {
-            console.log('Login error:', error);
+        } catch (err: any) {
+            // Error is handled by Redux state
         }
-        setLoading(false);
     };
 
-    const handleQuickLogin = () => {
-        setEmail('demo@tiqly.app');
-        setPassword('demo123');
-        handleLogin();
+    const handleForgotPassword = async () => {
+        if (!email.trim()) {
+            Alert.alert('Recuperar Contraseña', 'Ingresá tu email primero');
+            return;
+        }
+
+        Alert.alert(
+            'Recuperar Contraseña',
+            `¿Enviar email de recuperación a ${email}?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Enviar',
+                    onPress: async () => {
+                        try {
+                            await dispatch(resetPassword(email)).unwrap();
+                            Alert.alert('✅ Email Enviado', 'Revisá tu bandeja de entrada');
+                        } catch (err: any) {
+                            Alert.alert('Error', err || 'No se pudo enviar el email');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const goToRegister = () => {
+        dispatch(clearError());
+        navigation.navigate('Register');
     };
 
     return (
@@ -57,6 +89,14 @@ const LoginScreen = () => {
                         />
                         <Text style={styles.tagline}>Tu entrada al mundo de la noche</Text>
                     </View>
+
+                    {/* Error Display */}
+                    {error && (
+                        <View style={styles.errorContainer}>
+                            <Ionicons name="alert-circle" size={20} color="#FF4444" />
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    )}
 
                     {/* Form */}
                     <View style={styles.form}>
@@ -92,33 +132,44 @@ const LoginScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity style={styles.forgotBtn}>
+                        <TouchableOpacity style={styles.forgotBtn} onPress={handleForgotPassword}>
                             <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
+                            style={[styles.loginBtn, isLoading && styles.loginBtnDisabled]}
                             onPress={handleLogin}
-                            disabled={loading}
+                            disabled={isLoading}
                         >
-                            {loading ? (
+                            {isLoading ? (
                                 <ActivityIndicator color="#000" />
                             ) : (
                                 <Text style={styles.loginBtnText}>Iniciar Sesión</Text>
                             )}
                         </TouchableOpacity>
+                    </View>
 
-                        {/* Quick Demo Login */}
-                        <TouchableOpacity style={styles.demoBtn} onPress={handleQuickLogin}>
-                            <Ionicons name="flash" size={18} color="#00D9FF" />
-                            <Text style={styles.demoBtnText}>Acceso Rápido Demo</Text>
+                    {/* Divider */}
+                    <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>o</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Social Login (Placeholders) */}
+                    <View style={styles.socialContainer}>
+                        <TouchableOpacity style={styles.socialBtn}>
+                            <Ionicons name="logo-google" size={22} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.socialBtn}>
+                            <Ionicons name="logo-apple" size={22} color="#fff" />
                         </TouchableOpacity>
                     </View>
 
                     {/* Register Link */}
                     <View style={styles.registerContainer}>
                         <Text style={styles.registerText}>¿No tenés cuenta? </Text>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={goToRegister}>
                             <Text style={styles.registerLink}>Registrate</Text>
                         </TouchableOpacity>
                     </View>
@@ -153,6 +204,20 @@ const styles = StyleSheet.create({
     tagline: {
         color: '#666',
         fontSize: 14,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 68, 68, 0.1)',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+        gap: 8,
+    },
+    errorText: {
+        color: '#FF4444',
+        fontSize: 14,
+        flex: 1,
     },
     form: {
         gap: 16,
@@ -197,21 +262,35 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
     },
-    demoBtn: {
+    divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        borderRadius: 30,
-        borderWidth: 1,
-        borderColor: '#00D9FF',
-        borderStyle: 'dashed',
+        marginVertical: 24,
     },
-    demoBtnText: {
-        color: '#00D9FF',
-        fontWeight: 'bold',
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#222',
+    },
+    dividerText: {
+        color: '#666',
+        marginHorizontal: 16,
         fontSize: 14,
+    },
+    socialContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 16,
+    },
+    socialBtn: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#111',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#222',
     },
     registerContainer: {
         flexDirection: 'row',
