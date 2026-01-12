@@ -24,3 +24,9 @@ yarn-error.log*
 
 # macos
 .DS_Store
+
+# Next.js (tiqly-web)
+tiqly-web/.next/
+tiqly-web/node_modules/
+.next/
+out/

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,45 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  TextInput,
+  Modal,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store/store';
-import { setActiveRole, logoutUser } from '../../features/auth/authSlice';
+import { setActiveRole, logoutUser, updateUserProfile } from '../../features/auth/authSlice';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { clearAllTestData } from '../../lib/mock-data';
+
+// Mock saved payment methods
+const MOCK_PAYMENT_METHODS = [
+  { id: '1', type: 'visa', last4: '4242', expiry: '12/27', isDefault: true },
+  { id: '2', type: 'mastercard', last4: '8888', expiry: '03/26', isDefault: false },
+];
 
 const ProfileScreen = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
+
+  // Edit Profile Modal State
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
+
+  // Password Modal State
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+
+  // Payment Methods State
+  const [paymentMethods, setPaymentMethods] = useState(MOCK_PAYMENT_METHODS);
+  const [addCardModalVisible, setAddCardModalVisible] = useState(false);
 
   const handleToggleRole = () => {
     const newRole = user?.activeRole === 'attendee' ? 'organizer' : 'attendee';
@@ -24,8 +54,117 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = () => {
-    dispatch(logoutUser());
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro que querés cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sí, salir', style: 'destructive', onPress: () => dispatch(logoutUser()) },
+      ]
+    );
   };
+
+  // 📷 Pick Image from Gallery
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tus fotos para cambiar tu avatar.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setEditAvatar(result.assets[0].uri);
+    }
+  };
+
+  // 💾 Save Profile Changes
+  const handleSaveProfile = () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'El nombre no puede estar vacío');
+      return;
+    }
+
+    // Mock save - in production this would call an API
+    dispatch(updateUserProfile({ name: editName, phone: editPhone, avatar: editAvatar }));
+    setEditModalVisible(false);
+    Alert.alert('✅ Perfil Actualizado', 'Tus cambios fueron guardados correctamente.');
+  };
+
+  // 🔐 Handle Password Change
+  const handleChangePassword = () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Completá todos los campos');
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert('Error', 'La nueva contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    // Mock password change
+    setPasswordModalVisible(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    Alert.alert('✅ Contraseña Actualizada', 'Tu contraseña fue cambiada exitosamente.');
+  };
+
+  // 💳 Handle Add Card (Mock)
+  const handleAddCard = () => {
+    setAddCardModalVisible(false);
+    const newCard = {
+      id: Date.now().toString(),
+      type: 'visa',
+      last4: Math.floor(1000 + Math.random() * 9000).toString(),
+      expiry: '12/28',
+      isDefault: paymentMethods.length === 0,
+    };
+    setPaymentMethods([...paymentMethods, newCard]);
+    Alert.alert('✅ Tarjeta Agregada', 'Tu nueva tarjeta fue guardada correctamente.');
+  };
+
+  // 🗑️ Delete Card
+  const handleDeleteCard = (cardId: string) => {
+    Alert.alert(
+      'Eliminar Tarjeta',
+      '¿Estás seguro que querés eliminar esta tarjeta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => setPaymentMethods(paymentMethods.filter(c => c.id !== cardId))
+        },
+      ]
+    );
+  };
+
+  // ⭐ Set Default Card
+  const handleSetDefaultCard = (cardId: string) => {
+    setPaymentMethods(paymentMethods.map(c => ({ ...c, isDefault: c.id === cardId })));
+  };
+
+  const getCardIcon = (type: string) => {
+    switch (type) {
+      case 'visa': return 'card';
+      case 'mastercard': return 'card';
+      default: return 'card-outline';
+    }
+  };
+
+  const avatarUri = editAvatar || user?.avatar ||
+    `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=00D9FF&color=000&size=256`;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -35,19 +174,17 @@ const ProfileScreen = () => {
         {/* Profile Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=00D9FF&color=000&size=256` }}
-              style={styles.avatar}
-            />
-            <TouchableOpacity style={styles.editAvatar}>
-              <Ionicons name="camera" size={20} color="#000" />
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            <TouchableOpacity style={styles.editAvatar} onPress={() => setEditModalVisible(true)}>
+              <Ionicons name="pencil" size={18} color="#000" />
             </TouchableOpacity>
           </View>
           <Text style={styles.userName}>{user?.name || 'Nombre Usuario'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'email@tiqly.app'}</Text>
+          {user?.phone && <Text style={styles.userPhone}>📱 {user.phone}</Text>}
         </View>
 
-        {/* Stats / Badges (Visual only) */}
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>12</Text>
@@ -65,15 +202,29 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* Settings Groups */}
+        {/* ✏️ Mi Cuenta */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Mi Cuenta</Text>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setEditModalVisible(true)}>
             <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
               <Ionicons name="person-outline" size={22} color="#00D9FF" />
             </View>
-            <Text style={styles.menuText}>Editar Perfil</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>Editar Perfil</Text>
+              <Text style={styles.menuSubtext}>Nombre, foto, teléfono</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => setPasswordModalVisible(true)}>
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 255, 157, 0.1)' }]}>
+              <Ionicons name="lock-closed-outline" size={22} color="#00FF9D" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>Cambiar Contraseña</Text>
+              <Text style={styles.menuSubtext}>Actualizar credenciales</Text>
+            </View>
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
 
@@ -91,6 +242,58 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* 💳 Métodos de Pago */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Métodos de Pago</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setAddCardModalVisible(true)}
+            >
+              <Ionicons name="add" size={18} color="#00D9FF" />
+              <Text style={styles.addButtonText}>Agregar</Text>
+            </TouchableOpacity>
+          </View>
+
+          {paymentMethods.length === 0 ? (
+            <View style={styles.emptyPayment}>
+              <Ionicons name="card-outline" size={40} color="#333" />
+              <Text style={styles.emptyPaymentText}>No tenés tarjetas guardadas</Text>
+              <Text style={styles.emptyPaymentSubtext}>Agregá una para comprar en 1 click</Text>
+            </View>
+          ) : (
+            paymentMethods.map((card) => (
+              <TouchableOpacity
+                key={card.id}
+                style={[styles.cardItem, card.isDefault && styles.cardItemDefault]}
+                onPress={() => handleSetDefaultCard(card.id)}
+              >
+                <View style={styles.cardIcon}>
+                  <Ionicons name={getCardIcon(card.type)} size={24} color="#00D9FF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardNumber}>
+                    •••• •••• •••• {card.last4}
+                  </Text>
+                  <Text style={styles.cardExpiry}>Vence {card.expiry}</Text>
+                </View>
+                {card.isDefault && (
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultBadgeText}>Predeterminada</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={styles.deleteCardBtn}
+                  onPress={() => handleDeleteCard(card.id)}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#FF4444" />
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+
+        {/* ⚙️ Aplicación */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
 
@@ -119,6 +322,41 @@ const ProfileScreen = () => {
           </TouchableOpacity>
         </View>
 
+        {/* 🧪 Developer Tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧪 Dev Tools (Demo)</Text>
+
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              Alert.alert(
+                'Limpiar Datos de Prueba',
+                '¿Eliminar todos los tickets comprados y eventos creados? (Los eventos de demo se mantienen)',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Sí, limpiar',
+                    style: 'destructive',
+                    onPress: async () => {
+                      await clearAllTestData();
+                      Alert.alert('✅ Listo', 'Todos los datos de prueba fueron eliminados. Recargá la app para ver los cambios.');
+                    }
+                  },
+                ]
+              );
+            }}
+          >
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(255,157,0,0.1)' }]}>
+              <Ionicons name="trash-outline" size={22} color="#FFA500" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>Limpiar Datos de Prueba</Text>
+              <Text style={styles.menuSubtext}>Elimina tickets y eventos creados</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444" />
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={22} color="#FF4444" />
           <Text style={styles.logoutText}>Cerrar Sesión</Text>
@@ -128,6 +366,185 @@ const ProfileScreen = () => {
           <Text style={styles.versionText}>TiQly v1.0.0 (MVP Demo)</Text>
         </View>
       </ScrollView>
+
+      {/* 📝 Edit Profile Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar Perfil</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Avatar Editor */}
+            <TouchableOpacity style={styles.avatarEditor} onPress={pickImage}>
+              <Image source={{ uri: editAvatar || avatarUri }} style={styles.editAvatarImage} />
+              <View style={styles.avatarOverlay}>
+                <Ionicons name="camera" size={28} color="#fff" />
+                <Text style={styles.avatarOverlayText}>Cambiar foto</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Name Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre</Text>
+              <TextInput
+                style={styles.input}
+                value={editName}
+                onChangeText={setEditName}
+                placeholder="Tu nombre"
+                placeholderTextColor="#555"
+              />
+            </View>
+
+            {/* Phone Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Teléfono</Text>
+              <TextInput
+                style={styles.input}
+                value={editPhone}
+                onChangeText={setEditPhone}
+                placeholder="+54 11 1234 5678"
+                placeholderTextColor="#555"
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
+              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 🔐 Password Change Modal */}
+      <Modal
+        visible={passwordModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setPasswordModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Cambiar Contraseña</Text>
+              <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Contraseña Actual</Text>
+              <View style={styles.passwordInputRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor="#555"
+                  secureTextEntry={!showPasswords}
+                />
+                <TouchableOpacity onPress={() => setShowPasswords(!showPasswords)}>
+                  <Ionicons name={showPasswords ? "eye-off" : "eye"} size={22} color="#666" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nueva Contraseña</Text>
+              <TextInput
+                style={styles.input}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                placeholder="Mínimo 8 caracteres"
+                placeholderTextColor="#555"
+                secureTextEntry={!showPasswords}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Confirmar Contraseña</Text>
+              <TextInput
+                style={styles.input}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Repetí la nueva contraseña"
+                placeholderTextColor="#555"
+                secureTextEntry={!showPasswords}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.forgotPassword}>
+              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword}>
+              <Text style={styles.saveButtonText}>Actualizar Contraseña</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* 💳 Add Card Modal */}
+      <Modal
+        visible={addCardModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setAddCardModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Agregar Tarjeta</Text>
+              <TouchableOpacity onPress={() => setAddCardModalVisible(false)}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.cardPreview}>
+              <View style={styles.cardPreviewTop}>
+                <Ionicons name="card" size={32} color="#00D9FF" />
+                <Text style={styles.cardPreviewBrand}>VISA</Text>
+              </View>
+              <Text style={styles.cardPreviewNumber}>•••• •••• •••• ••••</Text>
+              <View style={styles.cardPreviewBottom}>
+                <View>
+                  <Text style={styles.cardPreviewLabel}>TITULAR</Text>
+                  <Text style={styles.cardPreviewValue}>{user?.name?.toUpperCase() || 'TU NOMBRE'}</Text>
+                </View>
+                <View>
+                  <Text style={styles.cardPreviewLabel}>VENCE</Text>
+                  <Text style={styles.cardPreviewValue}>MM/AA</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.secureNote}>
+              <Ionicons name="shield-checkmark" size={20} color="#00FF9D" />
+              <Text style={styles.secureNoteText}>
+                Tus datos están protegidos con encriptación de nivel bancario
+              </Text>
+            </View>
+
+            <TouchableOpacity style={styles.saveButton} onPress={handleAddCard}>
+              <Text style={styles.saveButtonText}>Agregar con Mercado Pago</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -179,6 +596,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 4,
   },
+  userPhone: {
+    color: '#00D9FF',
+    fontSize: 14,
+    marginTop: 8,
+  },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -215,6 +637,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 32,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     color: '#444',
     fontSize: 13,
@@ -223,6 +651,21 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     marginBottom: 16,
     marginLeft: 4,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,217,255,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  addButtonText: {
+    color: '#00D9FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   menuItem: {
     flexDirection: 'row',
@@ -253,6 +696,76 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  // Payment Methods
+  emptyPayment: {
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+    borderStyle: 'dashed',
+  },
+  emptyPaymentText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 12,
+  },
+  emptyPaymentSubtext: {
+    color: '#444',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  cardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.03)',
+  },
+  cardItemDefault: {
+    borderColor: 'rgba(0,217,255,0.3)',
+    backgroundColor: 'rgba(0,217,255,0.03)',
+  },
+  cardIcon: {
+    width: 48,
+    height: 32,
+    backgroundColor: 'rgba(0,217,255,0.1)',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  cardNumber: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  cardExpiry: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  defaultBadge: {
+    backgroundColor: 'rgba(0,217,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  defaultBadgeText: {
+    color: '#00D9FF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  deleteCardBtn: {
+    padding: 8,
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -278,6 +791,160 @@ const styles = StyleSheet.create({
     color: '#222',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#111',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  avatarEditor: {
+    alignSelf: 'center',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  editAvatarImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+  avatarOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarOverlayText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    padding: 16,
+    color: '#fff',
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  passwordInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+    borderRadius: 12,
+    paddingRight: 16,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  forgotPassword: {
+    alignSelf: 'center',
+    marginBottom: 24,
+  },
+  forgotPasswordText: {
+    color: '#00D9FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: '#00D9FF',
+    padding: 18,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#000',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  // Card Preview
+  cardPreview: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0,217,255,0.2)',
+  },
+  cardPreviewTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  cardPreviewBrand: {
+    color: '#00D9FF',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  cardPreviewNumber: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    marginBottom: 24,
+  },
+  cardPreviewBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  cardPreviewLabel: {
+    color: '#666',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  cardPreviewValue: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  secureNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,255,157,0.05)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 24,
+  },
+  secureNoteText: {
+    color: '#666',
+    fontSize: 12,
+    flex: 1,
   },
 });
 
