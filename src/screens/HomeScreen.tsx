@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView, ScrollView, Dimensions } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView, ScrollView, Dimensions, TextInput, Animated, Keyboard } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getEvents, EVENT_CATEGORIES } from '../lib/mock-data';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,19 +14,58 @@ const HomeScreen = () => {
   const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
 
+  // 🔍 Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
+  const searchBarAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (isFocused) {
       loadEvents();
     }
   }, [isFocused]);
 
+  // 🎯 Smart filtering: category + search query
   useEffect(() => {
-    if (selectedCategory === "Todos") {
-      setFilteredEvents(events);
-    } else {
-      setFilteredEvents(events.filter(e => e.category === selectedCategory));
+    let result = events;
+
+    // Filter by category first
+    if (selectedCategory !== "Todos") {
+      result = result.filter(e => e.category === selectedCategory);
     }
-  }, [selectedCategory, events]);
+
+    // Then filter by search query (fuzzy match on title, location, organizer)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(e =>
+        e.title?.toLowerCase().includes(query) ||
+        e.location?.address?.toLowerCase().includes(query) ||
+        e.location?.city?.toLowerCase().includes(query) ||
+        e.organizer?.name?.toLowerCase().includes(query) ||
+        e.description?.toLowerCase().includes(query)
+      );
+    }
+
+    setFilteredEvents(result);
+  }, [selectedCategory, events, searchQuery]);
+
+  // 🎬 Search bar animation
+  const animateSearchBar = (focused: boolean) => {
+    Animated.spring(searchBarAnim, {
+      toValue: focused ? 1 : 0,
+      useNativeDriver: false,
+      tension: 100,
+      friction: 10,
+    }).start();
+    setIsSearchFocused(focused);
+  };
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    searchInputRef.current?.blur();
+    Keyboard.dismiss();
+  }, []);
 
   const loadEvents = async () => {
     const data = await getEvents();
@@ -100,9 +139,49 @@ const HomeScreen = () => {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      {/* 🔍 Premium Animated Search Bar */}
+      <Animated.View style={[
+        styles.searchContainer,
+        {
+          borderColor: searchBarAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['rgba(255,255,255,0.08)', '#00D9FF'],
+          }),
+          backgroundColor: searchBarAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['rgba(255,255,255,0.05)', 'rgba(0,217,255,0.08)'],
+          }),
+        }
+      ]}>
+        <Ionicons
+          name="search"
+          size={20}
+          color={isSearchFocused ? '#00D9FF' : '#666'}
+          style={styles.searchIcon}
+        />
+        <TextInput
+          ref={searchInputRef}
+          style={styles.searchInput}
+          placeholder="Buscar eventos, artistas, lugares..."
+          placeholderTextColor="#555"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onFocus={() => animateSearchBar(true)}
+          onBlur={() => animateSearchBar(false)}
+          returnKeyType="search"
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+            <Ionicons name="close-circle" size={20} color="#666" />
+          </TouchableOpacity>
+        )}
+      </Animated.View>
+
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Featured Carousel */}
-        {featuredEvents.length > 0 && (
+        {featuredEvents.length > 0 && !searchQuery && (
           <View style={styles.carouselSection}>
             <Text style={styles.sectionTitle}>🔥 Destacados</Text>
             <FlatList
@@ -139,11 +218,22 @@ const HomeScreen = () => {
 
         {/* All Events List */}
         <View style={styles.listSection}>
-          <Text style={styles.sectionTitle}>📅 Todos los Eventos</Text>
+          <Text style={styles.sectionTitle}>
+            {searchQuery ? `🔍 Resultados para "${searchQuery}"` : '📅 Todos los Eventos'}
+          </Text>
           {filteredEvents.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color="#333" />
-              <Text style={styles.emptyText}>No hay eventos en esta categoría</Text>
+              <Ionicons name={searchQuery ? "sad-outline" : "search-outline"} size={48} color="#333" />
+              <Text style={styles.emptyText}>
+                {searchQuery
+                  ? `No encontramos eventos con "${searchQuery}"`
+                  : 'No hay eventos en esta categoría'}
+              </Text>
+              {searchQuery && (
+                <TouchableOpacity onPress={clearSearch} style={styles.clearSearchButton}>
+                  <Text style={styles.clearSearchText}>Limpiar búsqueda</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             filteredEvents.map((item) => (
@@ -183,6 +273,35 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
+  },
+  // 🔍 Search Bar Styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    // Glassmorphism shadow
+    shadowColor: '#00D9FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '500',
+  },
+  clearButton: {
+    padding: 6,
   },
   // Carousel Styles
   carouselSection: {
@@ -308,6 +427,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  clearSearchButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,217,255,0.15)',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#00D9FF',
+  },
+  clearSearchText: {
+    color: '#00D9FF',
+    fontWeight: '700',
+    fontSize: 14,
   },
   card: {
     backgroundColor: '#111111',

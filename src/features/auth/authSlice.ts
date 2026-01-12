@@ -75,6 +75,16 @@ const authSlice = createSlice({
         StorageService.saveAuthData(state.user);
       }
     },
+    updateUserProfile: (state, action: PayloadAction<{ name?: string; phone?: string; avatar?: string }>) => {
+      if (state.user) {
+        const { name, phone, avatar } = action.payload;
+        if (name) state.user.name = name;
+        if (phone !== undefined) state.user.phone = phone;
+        if (avatar !== undefined) state.user.avatar = avatar;
+        // Persist changes
+        StorageService.saveAuthData(state.user);
+      }
+    },
     clearError: (state) => {
       state.error = null;
     }
@@ -120,6 +130,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setActiveRole, clearError } = authSlice.actions;
+export const { setActiveRole, updateUserProfile, clearError } = authSlice.actions;
 
 export default authSlice.reducer;

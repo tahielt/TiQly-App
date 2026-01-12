@@ -187,3 +187,36 @@ export const getMyTickets = async () => {
         return [];
     }
 };
+
+// 🗑️ Clear all purchased tickets (for testing)
+export const clearMyTickets = async () => {
+    try {
+        await AsyncStorage.removeItem(STORAGE_KEYS.TICKETS);
+        return true;
+    } catch (e) {
+        console.error("Error clearing tickets", e);
+        return false;
+    }
+};
+
+// 🗑️ Clear all user-created events (keeps mock events)
+export const clearMyEvents = async () => {
+    try {
+        await AsyncStorage.removeItem(STORAGE_KEYS.EVENTS);
+        return true;
+    } catch (e) {
+        console.error("Error clearing events", e);
+        return false;
+    }
+};
+
+// 🗑️ Clear ALL test data (tickets + events)
+export const clearAllTestData = async () => {
+    try {
+        await AsyncStorage.multiRemove([STORAGE_KEYS.TICKETS, STORAGE_KEYS.EVENTS]);
+        return true;
+    } catch (e) {
+        console.error("Error clearing test data", e);
+        return false;
+    }
+};
