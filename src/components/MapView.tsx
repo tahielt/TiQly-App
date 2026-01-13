@@ -1,9 +1,14 @@
 
-import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions, Platform, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import { View, StyleSheet, Dimensions, Platform, ActivityIndicator, TouchableOpacity, Text, Image } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
+import TiQlyMarker from './TiQlyMarker';
+
+export interface MapViewHandle {
+  centerOnUser: () => void;
+}
 
 interface MapViewProps {
   initialLocation?: { latitude: number; longitude: number; zoom?: number };
@@ -74,7 +79,7 @@ const customMapStyle = [
   }
 ];
 
-const CustomMapView: React.FC<MapViewProps> = ({
+const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
   initialLocation,
   onLocationChange,
   onMarkerPress,
@@ -82,7 +87,7 @@ const CustomMapView: React.FC<MapViewProps> = ({
   editable = false,
   style,
   routeTo
-}) => {
+}, ref) => {
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [region, setRegion] = useState({
@@ -125,6 +130,18 @@ const CustomMapView: React.FC<MapViewProps> = ({
     }
   }, [routeTo, userLocation]);
 
+  useImperativeHandle(ref, () => ({
+    centerOnUser: () => {
+      if (userLocation && mapRef.current) {
+        mapRef.current.animateToRegion({
+          ...userLocation,
+          latitudeDelta: 0.0122,
+          longitudeDelta: 0.0021,
+        });
+      }
+    }
+  }));
+
   const handlePress = (e: any) => {
     if (editable && onLocationChange) {
       const { coordinate } = e.nativeEvent;
@@ -144,15 +161,16 @@ const CustomMapView: React.FC<MapViewProps> = ({
         customMapStyle={customMapStyle}
         onPress={handlePress}
       >
-        {/* Events Markers */}
+        {/* Events Markers with TiQly Icon */}
         {events.map((event) => (
           <Marker
             key={event.id}
             coordinate={event.coordinates}
             onPress={() => onMarkerPress && onMarkerPress(event.id)}
+            title={event.title}
           >
             <View style={styles.markerContainer}>
-              <Ionicons name="location" size={32} color="#00D9FF" />
+              <TiQlyMarker width={35} height={42} />
             </View>
           </Marker>
         ))}
@@ -177,26 +195,10 @@ const CustomMapView: React.FC<MapViewProps> = ({
 
       </MapView>
 
-      {/* Custom Locate Button */}
-      {!editable && (
-        <TouchableOpacity
-          style={styles.locateButton}
-          onPress={() => {
-            if (userLocation && mapRef.current) {
-              mapRef.current.animateToRegion({
-                ...userLocation,
-                latitudeDelta: 0.0122,
-                longitudeDelta: 0.0021,
-              });
-            }
-          }}
-        >
-          <Ionicons name="navigate" size={24} color="#00D9FF" />
-        </TouchableOpacity>
-      )}
+
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -212,20 +214,12 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: 35,
+    height: 42,
   },
-  locateButton: {
-    position: 'absolute',
-    bottom: 250,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#00D9FF',
-  }
+
+  // markerIcon style removed as it is no longer used
+
 });
 
 export default CustomMapView;

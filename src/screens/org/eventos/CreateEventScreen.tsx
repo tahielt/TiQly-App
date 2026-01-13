@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { saveEvent } from '../../../lib/mock-data';
+import { eventService } from '../../../services/eventService';
+import { supabase } from '../../../lib/supabase';
 import MapView from '../../../components/MapView';
 
 interface TicketLote {
@@ -109,8 +110,16 @@ const CreateEventScreen = () => {
       ticketTypes
     };
 
-    setTimeout(async () => {
-      const success = await saveEvent(newEvent);
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('Error', 'Debes estar logueado para crear eventos.');
+        setLoading(false);
+        return;
+      }
+
+      const success = await eventService.createEvent(newEvent, user.id);
       setLoading(false);
       if (success) {
         Alert.alert('¡Evento Creado!', `Tu evento ya está disponible con ${ticketTypes.length} tipos de entrada.`, [
@@ -119,7 +128,11 @@ const CreateEventScreen = () => {
       } else {
         Alert.alert('Error', 'Hubo un problema al guardar el evento.');
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      setLoading(false);
+      Alert.alert('Error', 'Hubo un problema al guardar el evento.');
+    }
   };
 
   return (

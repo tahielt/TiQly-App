@@ -1,6 +1,19 @@
 
 // Mock Social Feature Service
-export const getPosts = async (): Promise<any[]> => {
+
+export interface Post {
+  id?: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content?: string;
+  imageUrl?: string;
+  likes: string[];
+  comments: any[];
+  createdAt: Date;
+}
+
+export const getPosts = async (): Promise<Post[]> => {
   return [];
 };
 

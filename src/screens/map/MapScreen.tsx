@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, SafeAreaView, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getEvents, EVENT_CATEGORIES } from '../../lib/mock-data';
+import { EVENT_CATEGORIES } from '../../lib/mock-data';
+import { eventService } from '../../services/eventService';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import MapView from '../../components/MapView';
 
 const MapScreen = () => {
     const navigation = useNavigation<any>();
     const isFocused = useIsFocused();
+    const mapRef = useRef<any>(null);
     const [events, setEvents] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("Todos");
     const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
@@ -21,14 +23,22 @@ const MapScreen = () => {
     }, [isFocused, selectedCategory]);
 
     const loadEvents = async () => {
-        const data = await getEvents();
-        setEvents(data);
+        try {
+            const data = await eventService.getEvents();
+            console.log("Events loaded:", data.length);
+            setEvents(data);
 
-        let filtered = data;
-        if (selectedCategory !== "Todos") {
-            filtered = data.filter(e => e.category === selectedCategory);
+            let filtered = data;
+            if (selectedCategory !== "Todos") {
+                filtered = data.filter(e => e.category === selectedCategory);
+            }
+            setFilteredEvents(filtered);
+
+            // If DB is empty, maybe we should warn? 
+        } catch (error) {
+            console.error("Failed to load events", error);
+            Alert.alert("Error", "No se pudieron cargar los eventos");
         }
-        setFilteredEvents(filtered);
 
         // Reset selection if filter hides it
         if (selectedEvent && selectedCategory !== "Todos" && selectedEvent.category !== selectedCategory) {
@@ -63,14 +73,25 @@ const MapScreen = () => {
         }
     };
 
+    // Transform events for MapView (needs coordinates at top level)
+    const mapEvents = filteredEvents
+        .filter(e => e.location?.coordinates)
+        .map(e => ({
+            id: e.id,
+            title: e.title,
+            coordinates: e.location.coordinates,
+            image: e.coverImage
+        }));
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
             {/* Reusable Map Component with Routing */}
             <MapView
+                ref={mapRef}
                 style={styles.map}
-                events={filteredEvents}
+                events={mapEvents}
                 onMarkerPress={handleEventPress}
                 initialLocation={{
                     latitude: -41.133472,
@@ -89,23 +110,33 @@ const MapScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Category Chips */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
-                    {EVENT_CATEGORIES.map((cat) => (
-                        <TouchableOpacity
-                            key={cat}
-                            style={[styles.chip, selectedCategory === cat && styles.chipActive]}
-                            onPress={() => setSelectedCategory(cat)}
-                        >
-                            <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+                {/* Category Chips & Locate Button Row */}
+                <View style={styles.filtersRow}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
+                        {EVENT_CATEGORIES.map((cat) => (
+                            <TouchableOpacity
+                                key={cat}
+                                style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+                                onPress={() => setSelectedCategory(cat)}
+                            >
+                                <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+
+                    {/* Locate Button */}
+                    <TouchableOpacity
+                        style={styles.locateButton}
+                        onPress={() => mapRef.current?.centerOnUser()}
+                    >
+                        <Ionicons name="navigate" size={20} color="#00D9FF" />
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
 
-            {/* Bottom Sheet / Event List */}
-            <View style={styles.bottomSheet}>
-                {selectedEvent ? (
+            {/* Bottom Sheet - Only shows when event is selected */}
+            {selectedEvent && (
+                <View style={styles.bottomSheet}>
                     <View style={styles.selectedEventCard}>
                         <TouchableOpacity style={styles.closeButton} onPress={() => { setSelectedEvent(null); setRouteTo(null); }}>
                             <Ionicons name="close" size={20} color="#fff" />
@@ -134,29 +165,8 @@ const MapScreen = () => {
                             </View>
                         </View>
                     </View>
-                ) : (
-                    <>
-                        <View style={styles.bottomHeader}>
-                            <Text style={styles.bottomSheetTitle}>Eventos Cercanos</Text>
-                            <Text style={styles.eventCount}>{filteredEvents.length} eventos</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 15, paddingRight: 20 }}>
-                            {filteredEvents.map((event) => (
-                                <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => handleCardPress(event)}>
-                                    <Image source={{ uri: event.coverImage }} style={styles.eventImage} />
-                                    <View style={styles.eventInfo}>
-                                        <View style={styles.priceTag}>
-                                            <Text style={styles.priceText}>${event.price}</Text>
-                                        </View>
-                                        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-                                        <Text style={styles.eventLocation} numberOfLines={1}>{event.location?.address || 'Sin dirección'}</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </>
-                )}
-            </View>
+                </View>
+            )}
         </View>
     );
 };
@@ -199,12 +209,30 @@ const styles = StyleSheet.create({
         padding: 8,
         borderRadius: 10,
     },
+    filtersRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
     chipsScroll: {
         maxHeight: 50,
+        flex: 1, // Take available space
     },
     chipsContent: {
         paddingBottom: 10,
         gap: 8,
+        paddingRight: 10,
+    },
+    locateButton: {
+        backgroundColor: 'rgba(20,20,20,0.8)',
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#00D9FF',
+        marginBottom: 10, // Align with chips padding
     },
     chip: {
         paddingHorizontal: 16,

@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView, ScrollView, Dimensions, TextInput, Animated, Keyboard } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { getEvents, EVENT_CATEGORIES } from '../lib/mock-data';
+import { EVENT_CATEGORIES } from '../lib/mock-data';
+import { eventService } from '../services/eventService';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -68,8 +69,13 @@ const HomeScreen = () => {
   }, []);
 
   const loadEvents = async () => {
-    const data = await getEvents();
-    setEvents(data);
+    try {
+      const data = await eventService.getEvents();
+      // If data is empty, we set empty array. The UI already handles empty state.
+      setEvents(data);
+    } catch (error) {
+      console.error("Error loading home events:", error);
+    }
   };
 
   // Featured events (first 5)

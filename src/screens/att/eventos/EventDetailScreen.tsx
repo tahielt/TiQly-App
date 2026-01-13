@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getEventById, saveTicket, MOCK_USER } from '../../../lib/mock-data';
+import { eventService } from '../../../services/eventService';
+import { purchaseTicket } from '../../../services/ticketService';
+import { supabase } from '../../../lib/supabase';
 import { Event } from '../../../types/event';
 
 const EventDetailScreen = () => {
@@ -19,7 +21,7 @@ const EventDetailScreen = () => {
 
     const loadEvent = async () => {
         try {
-            const data = await getEventById(eventId);
+            const data = await eventService.getEventById(eventId);
             setEvent(data);
         } catch (error) {
             console.error("Error loading event:", error);
@@ -30,39 +32,54 @@ const EventDetailScreen = () => {
 
     const handlePurchase = async () => {
         setPurchasing(true);
-        // Simulate API call
-        setTimeout(async () => {
-            const newTicket = {
-                id: `ticket_${Date.now()}`,
+        try {
+            // Get current authenticated user
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (!currentUser) {
+                Alert.alert('Error', 'Debes iniciar sesión para comprar.');
+                setPurchasing(false);
+                return;
+            }
+
+            // Create purchase data
+            const basePrice = event.price || 0;
+            const platformFee = basePrice * 0.15; // 15% fee
+            const purchaseData = {
                 eventId: event.id,
-                eventTitle: event.title,
-                eventDate: event.startDate,
-                eventLocation: event.location.address,
-                userId: MOCK_USER.id,
-                userName: MOCK_USER.name,
-                userEmail: MOCK_USER.email,
-                price: event.price,
-                qrCode: `QR-${Date.now()}`,
-                status: 'active',
-                purchaseDate: new Date(),
+                ticketTypeId: 'general',
+                quantity: 1,
+                totalAmount: basePrice,
+                platformFee: platformFee,
+                finalAmount: basePrice + platformFee
             };
 
-            const success = await saveTicket(newTicket);
-            setPurchasing(false);
+            // Call real ticketService (Supabase)
+            await purchaseTicket(
+                purchaseData,
+                currentUser.id,
+                currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario',
+                currentUser.email || '',
+                {
+                    title: event.title,
+                    date: new Date(event.startDate),
+                    location: event.location?.address || 'Sin dirección'
+                }
+            );
 
-            if (success) {
-                Alert.alert(
-                    '¡Compra Exitosa!',
-                    'Tu entrada ha sido guardada en Mis Tickets.',
-                    [
-                        { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
-                        { text: 'OK' }
-                    ]
-                );
-            } else {
-                Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
-            }
-        }, 1500);
+            setPurchasing(false);
+            Alert.alert(
+                '¡Compra Exitosa!',
+                'Tu entrada ha sido guardada. Ve a Mis Tickets para ver tu QR.',
+                [
+                    { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
+                    { text: 'OK' }
+                ]
+            );
+        } catch (error) {
+            console.error('Purchase error:', error);
+            setPurchasing(false);
+            Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
+        }
     };
 
     if (loading) {

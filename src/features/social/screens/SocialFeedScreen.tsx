@@ -49,10 +49,10 @@ const SocialFeedScreen = () => {
     const originalPosts = [...posts];
     const updatedPosts = posts.map(p => {
       if (p.id === postId) {
-        const isLiked = p.likes.includes(user.uid);
+        const isLiked = p.likes.includes(user.id);
         const newLikes = isLiked
-          ? p.likes.filter(uid => uid !== user.uid)
-          : [...p.likes, user.uid];
+          ? p.likes.filter((id: string) => id !== user.id)
+          : [...p.likes, user.id];
         return { ...p, likes: newLikes };
       }
       return p;
@@ -61,7 +61,7 @@ const SocialFeedScreen = () => {
 
     // Call the service
     try {
-      await toggleLike(postId, user.uid);
+      await toggleLike(postId, user.id);
     } catch (error) {
       console.error('Error toggling like:', error);
       // Revert UI on error
@@ -73,35 +73,35 @@ const SocialFeedScreen = () => {
   const renderPost = ({ item }: { item: Post }) => (
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
-        <Image 
-          source={{ uri: item.userAvatar || 'https://via.placeholder.com/40' }} 
-          style={styles.avatar} 
+        <Image
+          source={{ uri: item.userAvatar || 'https://via.placeholder.com/40' }}
+          style={styles.avatar}
         />
         <View>
           <Text style={styles.userName}>{item.userName}</Text>
           <Text style={styles.postTime}>{new Date(item.createdAt).toLocaleDateString()}</Text>
         </View>
       </View>
-      
+
       {item.content && <Text style={styles.postContent}>{item.content}</Text>}
-      
+
       {item.imageUrl && (
-        <Image 
-          source={{ uri: item.imageUrl }} 
+        <Image
+          source={{ uri: item.imageUrl }}
           style={styles.postImage}
           resizeMode="cover"
         />
       )}
-      
+
       <View style={styles.postActions}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => handleLike(item.id!)}
         >
-          <Text style={item.likes.includes(user?.uid || '') ? styles.liked : {}}>❤️ {item.likes.length}</Text>
+          <Text style={item.likes.includes(user?.id || '') ? styles.liked : {}}>❤️ {item.likes.length}</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.actionButton}
           onPress={() => {
             navigation.navigate('PostDetail', { postId: item.id || '' });
@@ -136,8 +136,8 @@ const SocialFeedScreen = () => {
           </View>
         }
       />
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('CreatePost')}
       >

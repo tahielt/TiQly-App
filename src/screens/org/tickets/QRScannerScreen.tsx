@@ -10,6 +10,8 @@ import {
   Dimensions,
   Vibration,
   Platform,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -23,6 +25,7 @@ const QRScannerScreen = () => {
   const navigation = useNavigation<any>();
   const { user } = useSelector((state: RootState) => state.auth);
   const [scanning, setScanning] = useState(false);
+  const [manualQR, setManualQR] = useState('');
   const [lastResult, setLastResult] = useState<{ success: boolean; message: string; ticket?: any } | null>(null);
 
   const handleSimulateScan = async (mockQRCode: string) => {
@@ -120,9 +123,38 @@ const QRScannerScreen = () => {
           Apunta la cámara al código QR de la entrada.
         </Text>
 
+        {/* Manual QR Input */}
+        <View style={styles.manualInputContainer}>
+          <Text style={styles.manualInputLabel}>O ingresá el código QR manualmente:</Text>
+          <View style={styles.manualInputRow}>
+            <TextInput
+              style={styles.manualInput}
+              placeholder="Pegar código QR aquí..."
+              placeholderTextColor="#555"
+              value={manualQR}
+              onChangeText={setManualQR}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={[styles.validateBtn, (!manualQR || scanning) && styles.validateBtnDisabled]}
+              onPress={() => {
+                if (manualQR.trim()) {
+                  handleSimulateScan(manualQR.trim());
+                  setManualQR('');
+                }
+              }}
+              disabled={!manualQR || scanning}
+            >
+              <Ionicons name="checkmark" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Demo Controls */}
         <View style={styles.simInfoBox}>
           <Ionicons name="flask-outline" size={16} color="#00D9FF" />
-          <Text style={styles.simInfoText}>Modo Demo: Usá los botones de abajo</Text>
+          <Text style={styles.simInfoText}>Modo Demo: Simuladores rápidos</Text>
         </View>
 
         {/* Mock Controls */}
@@ -351,6 +383,40 @@ const styles = StyleSheet.create({
   mockBtnText: {
     fontWeight: '900',
     fontSize: 15,
+  },
+  manualInputContainer: {
+    width: '85%',
+    marginBottom: 20,
+  },
+  manualInputLabel: {
+    color: '#666',
+    fontSize: 13,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  manualInput: {
+    flex: 1,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 12,
+    padding: 14,
+    color: '#fff',
+    fontSize: 14,
+  },
+  validateBtn: {
+    backgroundColor: '#00D9FF',
+    width: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  validateBtnDisabled: {
+    opacity: 0.4,
   },
 });
 

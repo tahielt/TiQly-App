@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getMyTickets } from '../../../lib/mock-data';
+import { getUserTickets } from '../../../services/ticketService';
+import { supabase } from '../../../lib/supabase';
 
 interface StoredTicket {
     id: string;
@@ -34,8 +35,29 @@ const MyTicketsScreen = () => {
     const [refreshing, setRefreshing] = useState(false);
 
     const loadTickets = async () => {
-        const data = await getMyTickets();
-        setTickets(data);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const data = await getUserTickets(user.id);
+                // Map to StoredTicket interface if needed
+                setTickets(data.map(t => ({
+                    id: t.id,
+                    eventId: t.eventId,
+                    eventTitle: t.eventTitle,
+                    eventDate: t.eventDate.toISOString(),
+                    eventLocation: t.eventLocation,
+                    userId: t.userId,
+                    userName: t.userName,
+                    userEmail: t.userEmail,
+                    price: t.price,
+                    qrCode: t.qrCode,
+                    status: t.status as 'active' | 'used' | 'transferred',
+                    purchaseDate: t.purchaseDate.toISOString()
+                })));
+            }
+        } catch (error) {
+            console.error('Error loading tickets:', error);
+        }
     };
 
     // Reload on focus (when returning from purchase)
