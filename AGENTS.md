@@ -26,15 +26,7 @@ TiQly-App is an Expo-based React Native mobile application focused on event tick
 - **Run Android**: `npx expo run:android`
 - **Run iOS**: `npx expo run:ios`
 - **Lint**: `npx eslint . --ext .js,.jsx,.ts,.tsx` (if configured)
-- **Type Check**: `npx tsc --noEmit`
-
-## Environment Variables
-Ensure you have a `.env` file in the root directory (do NOT commit this file):
-```
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-# EXPO_PUBLIC_GOOGLE_MAPS_KEY=optional_if_needed
-```
+- **Type Check**: `npx tsc --noEmit
 
 ## Code Style & Patterns
 - **Components**: Functional components with Hooks.
