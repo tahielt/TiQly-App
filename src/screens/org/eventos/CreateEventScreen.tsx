@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
 import { supabase } from '../../../lib/supabase';
 import MapView from '../../../components/MapView';
+import * as ImagePicker from 'expo-image-picker';
 
 interface TicketLote {
   id: string;
@@ -29,14 +30,38 @@ const CreateEventScreen = () => {
     address: '',
     city: 'Bariloche',
     latitude: '-41.133',
-    longitude: '-71.310'
+    longitude: '-71.310',
+    coverImage: ''
   });
+
+  const pickMedia = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a tus fotos para subir la portada.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setForm({ ...form, coverImage: result.assets[0].uri });
+    }
+  };
 
   // Ticket Lotes State
   const [ticketLotes, setTicketLotes] = useState<TicketLote[]>([
     { id: '1', name: 'Early Bird', price: '15000', quantity: '50' },
     { id: '2', name: 'General', price: '20000', quantity: '100' },
   ]);
+  const [loteErrors, setLoteErrors] = useState<{ [key: string]: boolean }>({});
+  const [formErrors, setFormErrors] = useState<{ title?: boolean; address?: boolean }>({});
+  const scrollViewRef = useRef<ScrollView>(null);
+  const loteRefs = useRef<{ [key: string]: View | null }>({});
 
   const addLote = () => {
     const newLote: TicketLote = {
@@ -61,8 +86,42 @@ const CreateEventScreen = () => {
   };
 
   const handleCreate = async () => {
-    if (!form.title || !form.address) {
-      Alert.alert('Error', 'Por favor completa el título y dirección');
+    const newFormErrors: { title?: boolean; address?: boolean } = {};
+    let hasFormErrors = false;
+
+    if (!form.title) {
+      newFormErrors.title = true;
+      hasFormErrors = true;
+    }
+    if (!form.address) {
+      newFormErrors.address = true;
+      hasFormErrors = true;
+    }
+
+    if (hasFormErrors) {
+      setFormErrors(newFormErrors);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      Alert.alert('Error', 'Por favor completa los campos requeridos');
+      return;
+    }
+
+    // Validate Lotes
+    const newLoteErrors: { [key: string]: boolean } = {};
+    let hasErrors = false;
+    let firstErrorId = '';
+
+    ticketLotes.forEach(lote => {
+      if (!lote.name.trim()) {
+        newLoteErrors[lote.id] = true;
+        hasErrors = true;
+        if (!firstErrorId) firstErrorId = lote.id;
+      }
+    });
+
+    if (hasErrors) {
+      setLoteErrors(newLoteErrors);
+      // Scroll to lotes section roughly, or specific lote if possible
+      scrollViewRef.current?.scrollToEnd({ animated: true });
       return;
     }
 
@@ -73,6 +132,38 @@ const CreateEventScreen = () => {
     }
 
     setLoading(true);
+
+    // Upload cover image to Supabase Storage if selected
+    let coverImageUrl = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200';
+
+    if (form.coverImage) {
+      try {
+        const fileName = `event_${Date.now()}.jpg`;
+        const response = await fetch(form.coverImage);
+        const blob = await response.blob();
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('event-covers')
+          .upload(fileName, blob, {
+            contentType: 'image/jpeg',
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.warn('Upload error (using default image):', uploadError.message);
+          Alert.alert('Aviso', 'No se pudo subir la imagen (¿Bucket "event-covers" existe?). Usando imagen por defecto.');
+          // Continue with default image if upload fails
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('event-covers')
+            .getPublicUrl(fileName);
+          coverImageUrl = urlData.publicUrl;
+        }
+      } catch (uploadErr) {
+        console.warn('Error uploading image:', uploadErr);
+        // Continue with default image
+      }
+    }
 
     const ticketTypes = validLotes.map((lote, index) => ({
       id: `t${index + 1}`,
@@ -102,7 +193,7 @@ const CreateEventScreen = () => {
       },
       organizerId: 'org_1',
       organizerName: 'Electronic Hub',
-      coverImage: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200',
+      coverImage: coverImageUrl,
       status: 'published',
       attendeeCount: 0,
       createdAt: new Date(),
@@ -145,200 +236,226 @@ const CreateEventScreen = () => {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Cover Image Placeholder */}
-        <TouchableOpacity style={styles.imageUpload}>
-          <Ionicons name="image-outline" size={40} color="#666" />
-          <Text style={styles.uploadText}>Subir Portada</Text>
-        </TouchableOpacity>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Cover Image Placeholder */}
+          <TouchableOpacity style={styles.imageUpload} onPress={pickMedia}>
+            {form.coverImage ? (
+              <Image source={{ uri: form.coverImage }} style={styles.previewImage} />
+            ) : (
+              <>
+                <Ionicons name="image-outline" size={40} color="#666" />
+                <Text style={styles.uploadText}>Subir Portada</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Título del Evento</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: White Party 2025"
-            placeholderTextColor="#666"
-            value={form.title}
-            onChangeText={(t) => setForm({ ...form, title: t })}
-          />
-
-          <Text style={styles.label}>Categoría</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
-            {['Fiesta Electrónica', 'Cachengue'].map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.chip, form.category === cat && styles.chipActive]}
-                onPress={() => setForm({ ...form, category: cat })}
-              >
-                <Text style={[styles.chipText, form.category === cat && styles.chipTextActive]}>{cat}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <Text style={styles.label}>Descripción</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Describe tu evento..."
-            placeholderTextColor="#666"
-            multiline
-            numberOfLines={4}
-            value={form.description}
-            onChangeText={(t) => setForm({ ...form, description: t })}
-          />
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Fecha</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor="#666"
-                value={form.startDate}
-                onChangeText={(t) => setForm({ ...form, startDate: t })}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>Hora</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="HH:MM"
-                placeholderTextColor="#666"
-                value={form.startTime}
-                onChangeText={(t) => setForm({ ...form, startTime: t })}
-              />
-            </View>
-          </View>
-
-          {/* Location Picker */}
-          <Text style={styles.label}>Ubicación (Toca el mapa)</Text>
-          <View style={styles.mapContainer}>
-            <MapView
-              editable={true}
-              style={{ flex: 1 }}
-              initialLocation={{
-                latitude: parseFloat(form.latitude),
-                longitude: parseFloat(form.longitude)
-              }}
-              onLocationChange={(loc) => {
-                setForm({
-                  ...form,
-                  latitude: loc.latitude.toString(),
-                  longitude: loc.longitude.toString()
-                });
+          <View style={styles.form}>
+            <Text style={styles.label}>Título del Evento</Text>
+            <TextInput
+              style={[styles.input, formErrors.title && styles.inputError]}
+              placeholder={formErrors.title ? "Falta título" : "Ej: White Party 2025"}
+              placeholderTextColor={formErrors.title ? "#FF4444" : "#666"}
+              value={form.title}
+              onChangeText={(t) => {
+                setForm({ ...form, title: t });
+                if (formErrors.title) setFormErrors({ ...formErrors, title: false });
               }}
             />
-            <View style={styles.coordinatesOverlay}>
-              <Ionicons name="location" size={12} color="#00D9FF" />
-              <Text style={styles.coordsText}>
-                {parseFloat(form.latitude).toFixed(4)}, {parseFloat(form.longitude).toFixed(4)}
-              </Text>
-            </View>
-          </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text style={styles.label}>Dirección</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Av. Bustillo 1500"
-                placeholderTextColor="#666"
-                value={form.address}
-                onChangeText={(t) => setForm({ ...form, address: t })}
-              />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text style={styles.label}>Ciudad</Text>
-              <TextInput
-                style={styles.input}
-                value={form.city}
-                onChangeText={(t) => setForm({ ...form, city: t })}
-              />
-            </View>
-          </View>
-
-          {/* TICKET LOTES SECTION */}
-          <View style={styles.lotesSection}>
-            <View style={styles.lotesSectionHeader}>
-              <Text style={styles.sectionTitle}>🎫 Lotes de Entradas</Text>
-              <TouchableOpacity style={styles.addLoteBtn} onPress={addLote}>
-                <Ionicons name="add" size={20} color="#00D9FF" />
-                <Text style={styles.addLoteBtnText}>Agregar</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsScroll}>
-              {LOTE_PRESETS.map((preset) => (
+            <Text style={styles.label}>Categoría</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
+              {['Fiesta Electrónica', 'Cachengue'].map((cat) => (
                 <TouchableOpacity
-                  key={preset}
-                  style={styles.presetChip}
-                  onPress={() => {
-                    const newLote: TicketLote = {
-                      id: Date.now().toString(),
-                      name: preset,
-                      price: preset.includes('VIP') ? '35000' : preset === 'Early Bird' ? '15000' : '20000',
-                      quantity: '50'
-                    };
-                    setTicketLotes([...ticketLotes, newLote]);
-                  }}
+                  key={cat}
+                  style={[styles.chip, form.category === cat && styles.chipActive]}
+                  onPress={() => setForm({ ...form, category: cat })}
                 >
-                  <Text style={styles.presetChipText}>+ {preset}</Text>
+                  <Text style={[styles.chipText, form.category === cat && styles.chipTextActive]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {ticketLotes.map((lote, index) => (
-              <View key={lote.id} style={styles.loteCard}>
-                <View style={styles.loteHeader}>
-                  <Text style={styles.loteNumber}>Lote {index + 1}</Text>
-                  {ticketLotes.length > 1 && (
-                    <TouchableOpacity onPress={() => removeLote(lote.id)}>
-                      <Ionicons name="trash-outline" size={20} color="#FF4444" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <TextInput
-                  style={styles.loteInput}
-                  placeholder="Nombre (ej: Early Bird)"
-                  placeholderTextColor="#555"
-                  value={lote.name}
-                  onChangeText={(v) => updateLote(lote.id, 'name', v)}
-                />
-                <View style={styles.loteRow}>
-                  <View style={{ flex: 1, marginRight: 8 }}>
-                    <Text style={styles.loteLabel}>Precio ($)</Text>
-                    <TextInput
-                      style={styles.loteInput}
-                      placeholder="20000"
-                      placeholderTextColor="#555"
-                      keyboardType="numeric"
-                      value={lote.price}
-                      onChangeText={(v) => updateLote(lote.id, 'price', v)}
-                    />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={styles.loteLabel}>Cantidad</Text>
-                    <TextInput
-                      style={styles.loteInput}
-                      placeholder="100"
-                      placeholderTextColor="#555"
-                      keyboardType="numeric"
-                      value={lote.quantity}
-                      onChangeText={(v) => updateLote(lote.id, 'quantity', v)}
-                    />
-                  </View>
-                </View>
-              </View>
-            ))}
+            <Text style={styles.label}>Descripción</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Describe tu evento..."
+              placeholderTextColor="#666"
+              multiline
+              numberOfLines={4}
+              value={form.description}
+              onChangeText={(t) => setForm({ ...form, description: t })}
+            />
 
-            <View style={styles.comisionInfo}>
-              <Ionicons name="information-circle-outline" size={16} color="#00D9FF" />
-              <Text style={styles.comisionText}>
-                TiQly cobra 15% de comisión al comprador. Vos recibís el 100% del precio de entrada.
-              </Text>
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>Fecha</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#666"
+                  value={form.startDate}
+                  onChangeText={(t) => setForm({ ...form, startDate: t })}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.label}>Hora</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#666"
+                  value={form.startTime}
+                  onChangeText={(t) => setForm({ ...form, startTime: t })}
+                />
+              </View>
+            </View>
+
+            {/* Location Picker */}
+            <Text style={styles.label}>Ubicación (Toca el mapa)</Text>
+            <View style={styles.mapContainer}>
+              <MapView
+                editable={true}
+                style={{ flex: 1 }}
+                initialLocation={{
+                  latitude: parseFloat(form.latitude),
+                  longitude: parseFloat(form.longitude)
+                }}
+                onLocationChange={(loc) => {
+                  setForm({
+                    ...form,
+                    latitude: loc.latitude.toString(),
+                    longitude: loc.longitude.toString()
+                  });
+                }}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>Dirección</Text>
+                <TextInput
+                  style={[styles.input, formErrors.address && styles.inputError]}
+                  placeholder={formErrors.address ? "Falta dirección" : "Ej: Av. Bustillo 1500"}
+                  placeholderTextColor={formErrors.address ? "#FF4444" : "#666"}
+                  value={form.address}
+                  onChangeText={(t) => {
+                    setForm({ ...form, address: t });
+                    if (formErrors.address) setFormErrors({ ...formErrors, address: false });
+                  }}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.label}>Ciudad</Text>
+                <TextInput
+                  style={styles.input}
+                  value={form.city}
+                  onChangeText={(t) => setForm({ ...form, city: t })}
+                />
+              </View>
+            </View>
+
+            {/* TICKET LOTES SECTION */}
+            <View style={styles.lotesSection}>
+              <View style={styles.lotesSectionHeader}>
+                <Text style={styles.sectionTitle}>🎫 Lotes de Entradas</Text>
+                <TouchableOpacity style={styles.addLoteBtn} onPress={addLote}>
+                  <Ionicons name="add" size={20} color="#00D9FF" />
+                  <Text style={styles.addLoteBtnText}>Agregar</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.presetsScroll}>
+                {LOTE_PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset}
+                    style={styles.presetChip}
+                    onPress={() => {
+                      const newLote: TicketLote = {
+                        id: Date.now().toString(),
+                        name: preset,
+                        price: preset.includes('VIP') ? '35000' : preset === 'Early Bird' ? '15000' : '20000',
+                        quantity: '50'
+                      };
+                      setTicketLotes([...ticketLotes, newLote]);
+                    }}
+                  >
+                    <Text style={styles.presetChipText}>+ {preset}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {ticketLotes.map((lote, index) => (
+                <View key={lote.id} style={styles.loteCard}>
+                  <View style={styles.loteHeader}>
+                    <Text style={styles.loteNumber}>
+                      {lote.name ? lote.name.toUpperCase() : ""}
+                    </Text>
+                    {ticketLotes.length > 1 && (
+                      <TouchableOpacity onPress={() => removeLote(lote.id)}>
+                        <Ionicons name="trash-outline" size={20} color="#FF4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <TextInput
+                    style={[
+                      styles.loteInput,
+                      loteErrors[lote.id] && styles.inputError
+                    ]}
+                    placeholder={loteErrors[lote.id] ? "Falta nombre" : "Nombre..."}
+                    placeholderTextColor={loteErrors[lote.id] ? "#FF4444" : "#555"}
+                    value={lote.name}
+                    onChangeText={(v) => {
+                      updateLote(lote.id, 'name', v);
+                      if (loteErrors[lote.id]) {
+                        setLoteErrors({ ...loteErrors, [lote.id]: false });
+                      }
+                    }}
+                  />
+                  <View style={styles.loteRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={styles.loteLabel}>Precio ($)</Text>
+                      <TextInput
+                        style={styles.loteInput}
+                        placeholder="20000"
+                        placeholderTextColor="#555"
+                        keyboardType="numeric"
+                        value={lote.price}
+                        onChangeText={(v) => updateLote(lote.id, 'price', v)}
+                      />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 8 }}>
+                      <Text style={styles.loteLabel}>Cantidad</Text>
+                      <TextInput
+                        style={styles.loteInput}
+                        placeholder="100"
+                        placeholderTextColor="#555"
+                        keyboardType="numeric"
+                        value={lote.quantity}
+                        onChangeText={(v) => updateLote(lote.id, 'quantity', v)}
+                      />
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              <View style={styles.comisionInfo}>
+                <Ionicons name="information-circle-outline" size={16} color="#00D9FF" />
+                <Text style={styles.comisionText}>
+                  TiQly cobra 15% de comisión al comprador. Vos recibís el 100% del precio de entrada.
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -602,6 +719,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  inputError: {
+    borderColor: '#FF4444',
+  }
 });
 
 export default CreateEventScreen;

@@ -25,7 +25,7 @@ interface StoredTicket {
     userEmail: string;
     price: number;
     qrCode: string;
-    status: 'active' | 'used' | 'transferred';
+    status: 'active' | 'used' | 'transferred' | 'for_sale';
     purchaseDate: string;
 }
 
@@ -39,7 +39,6 @@ const MyTicketsScreen = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const data = await getUserTickets(user.id);
-                // Map to StoredTicket interface if needed
                 setTickets(data.map(t => ({
                     id: t.id,
                     eventId: t.eventId,
@@ -51,8 +50,8 @@ const MyTicketsScreen = () => {
                     userEmail: t.userEmail,
                     price: t.price,
                     qrCode: t.qrCode,
-                    status: t.status as 'active' | 'used' | 'transferred',
-                    purchaseDate: t.purchaseDate.toISOString()
+                    status: t.status as 'active' | 'used' | 'transferred' | 'for_sale',
+                    purchaseDate: t.purchaseDate.toISOString(),
                 })));
             }
         } catch (error) {
@@ -60,7 +59,6 @@ const MyTicketsScreen = () => {
         }
     };
 
-    // Reload on focus (when returning from purchase)
     useFocusEffect(
         useCallback(() => {
             loadTickets();
@@ -75,68 +73,70 @@ const MyTicketsScreen = () => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active':
-                return '#00D9FF';
-            case 'used':
-                return '#888';
-            case 'transferred':
-                return '#FF6B6B';
-            default:
-                return '#fff';
+            case 'active': return '#00D9FF';
+            case 'for_sale': return '#00FF9D';
+            case 'used': return '#888';
+            case 'transferred': return '#FF6B6B';
+            default: return '#fff';
         }
     };
 
     const getStatusText = (status: string) => {
         switch (status) {
-            case 'active':
-                return 'ACTIVO';
-            case 'used':
-                return 'USADO';
-            case 'transferred':
-                return 'TRANSFERIDO';
-            default:
-                return status.toUpperCase();
+            case 'active': return 'ACTIVO';
+            case 'for_sale': return 'EN VENTA';
+            case 'used': return 'USADO';
+            case 'transferred': return 'TRANSFERIDO';
+            default: return status.toUpperCase();
         }
     };
 
-    const renderTicketItem = ({ item }: { item: StoredTicket }) => (
-        <TouchableOpacity
-            style={styles.ticketCard}
-            onPress={() => navigation.navigate('AttTicketDetalle', { ticketId: item.id })}
-        >
-            <View style={styles.ticketHeader}>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
-                    <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+    const renderTicketItem = ({ item }: { item: StoredTicket }) => {
+        const isForSale = item.status === 'for_sale';
+
+        return (
+            <TouchableOpacity
+                style={[styles.ticketCard, isForSale && styles.ticketCardForSale]}
+                onPress={() => navigation.navigate('AttTicketDetalle', { ticketId: item.id })}
+                activeOpacity={0.9}
+            >
+                <View style={styles.ticketHeader}>
+                    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                        <Text style={styles.statusText}>{getStatusText(item.status)}</Text>
+                    </View>
+                    <Text style={styles.qrCode}>#{item.qrCode.slice(-6)}</Text>
                 </View>
-                <Text style={styles.qrCode}>#{item.qrCode.slice(-6)}</Text>
-            </View>
 
-            <Text style={styles.eventTitle}>{item.eventTitle}</Text>
+                <Text style={styles.eventTitle}>{item.eventTitle}</Text>
 
-            <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={16} color="#00D9FF" />
-                <Text style={styles.infoText}>
-                    {item.eventDate ? new Date(item.eventDate).toLocaleDateString('es-AR', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                    }) : 'Fecha pendiente'}
-                </Text>
-            </View>
+                <View style={styles.infoRow}>
+                    <Ionicons name="calendar-outline" size={16} color="#00D9FF" />
+                    <Text style={styles.infoText}>
+                        {item.eventDate ? new Date(item.eventDate).toLocaleDateString('es-AR', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                        }) : 'Fecha pendiente'}
+                    </Text>
+                </View>
 
-            <View style={styles.infoRow}>
-                <Ionicons name="location-outline" size={16} color="#00D9FF" />
-                <Text style={styles.infoText}>{item.eventLocation}</Text>
-            </View>
+                <View style={styles.infoRow}>
+                    <Ionicons name="location-outline" size={16} color="#00D9FF" />
+                    <Text style={styles.infoText}>{item.eventLocation}</Text>
+                </View>
 
-            <View style={styles.ticketFooter}>
-                <Text style={styles.priceText}>${item.price?.toLocaleString() || '0'}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#666" />
-            </View>
-        </TouchableOpacity>
-    );
+                <View style={styles.ticketFooter}>
+                    <View>
+                        <Text style={styles.priceLabel}>Pagaste</Text>
+                        <Text style={styles.priceText}>${item.price?.toLocaleString() || '0'}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#666" />
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     const renderEmptyState = () => (
         <View style={styles.emptyState}>
@@ -147,7 +147,7 @@ const MyTicketsScreen = () => {
             </Text>
             <TouchableOpacity
                 style={styles.browseButton}
-                onPress={() => navigation.navigate('Eventos')}
+                onPress={() => navigation.navigate('Home')}
             >
                 <Text style={styles.browseButtonText}>Explorar Eventos</Text>
             </TouchableOpacity>
@@ -211,6 +211,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 20,
+        paddingBottom: 120,
     },
     emptyListContent: {
         flex: 1,
@@ -222,6 +223,10 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         borderWidth: 1,
         borderColor: '#222',
+    },
+    ticketCardForSale: {
+        borderColor: '#00FF9D',
+        borderWidth: 2,
     },
     ticketHeader: {
         flexDirection: 'row',
@@ -269,9 +274,14 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#222',
     },
+    priceLabel: {
+        color: '#666',
+        fontSize: 11,
+        marginBottom: 2,
+    },
     priceText: {
         color: '#00D9FF',
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
     },
     emptyState: {

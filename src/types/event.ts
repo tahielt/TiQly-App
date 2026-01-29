@@ -36,6 +36,7 @@ export interface Event {
   startDate: Date;
   endDate: Date;
   coverImage?: string;
+  price?: number;
   gallery: string[];
   ticketTypes: EventTicketType[];
   attendeeCount: number;

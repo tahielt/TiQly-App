@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { View } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store/store';
+import { BlurView } from 'expo-blur';
 import {
   RootStackParamList,
   MainTabParamList,
@@ -36,6 +37,7 @@ import ProfileScreen from '../screens/perfil/ProfileScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
+import SwapScreen from '../screens/swap/SwapScreen';
 
 // Pantallas de carga y autenticación (Temporales)
 const LoadingScreen = PlaceholderScreen;
@@ -142,83 +144,148 @@ const CuentaStack = () => {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+// Custom Tab Bar with Blur Effect
+const CustomTabBar = ({ state, descriptors, navigation }: any) => {
+  return (
+    <View style={styles.tabBarContainer}>
+      <BlurView intensity={80} tint="dark" style={styles.tabBarBlur}>
+        <View style={styles.tabBarContent}>
+          {state.routes.map((route: any, index: number) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+            const isMapTab = route.name === 'Mapa';
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name);
+              }
+            };
+
+            // Get icon based on route
+            let iconName: any = 'home-outline';
+            let iconNameFocused: any = 'home';
+            let label = route.name;
+
+            switch (route.name) {
+              case 'Home':
+                iconName = 'home-outline';
+                iconNameFocused = 'home';
+                label = 'Home';
+                break;
+              case 'Tickets':
+                iconName = 'ticket-outline';
+                iconNameFocused = 'ticket';
+                label = 'Tickets';
+                break;
+              case 'Mapa':
+                iconName = 'map-outline';
+                iconNameFocused = 'map';
+                label = '';
+                break;
+              case 'Swap':
+                iconName = 'swap-horizontal-outline';
+                iconNameFocused = 'swap-horizontal';
+                label = 'Swap';
+                break;
+              case 'Perfil':
+                iconName = 'person-outline';
+                iconNameFocused = 'person';
+                label = 'Perfil';
+                break;
+            }
+
+            if (isMapTab) {
+              // Center Map Button - Special Design
+              return (
+                <View key={route.key} style={styles.mapTabWrapper}>
+                  <View
+                    style={[
+                      styles.mapTabOuter,
+                      isFocused && styles.mapTabOuterActive
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.mapTabInner,
+                        isFocused && styles.mapTabInnerActive
+                      ]}
+                      onTouchEnd={onPress}
+                    >
+                      <Ionicons
+                        name={isFocused ? iconNameFocused : iconName}
+                        size={28}
+                        color={isFocused ? '#000' : '#888'}
+                      />
+                    </View>
+                  </View>
+                </View>
+              );
+            }
+
+            return (
+              <View
+                key={route.key}
+                style={styles.tabItem}
+                onTouchEnd={onPress}
+              >
+                <Ionicons
+                  name={isFocused ? iconNameFocused : iconName}
+                  size={24}
+                  color={isFocused ? '#00D9FF' : '#666'}
+                />
+                {label ? (
+                  <View style={styles.tabLabelContainer}>
+                    <View style={[styles.tabLabel, isFocused && styles.tabLabelText]}>
+                      {isFocused && <View style={styles.activeDot} />}
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </View>
+      </BlurView>
+    </View>
+  );
+};
+
 const MainTabs = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const isOrg = user?.roles.includes('organizer') && user?.activeRole === 'organizer';
-  const Tab = createBottomTabNavigator<MainTabParamList>();
+  const Tab = createBottomTabNavigator<any>();
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: '#000000',
-          borderTopColor: '#222',
-          height: 80, // Taller tab bar
-          paddingBottom: 20,
-        },
-        tabBarActiveTintColor: '#00D9FF', // Fluorescent green
-        tabBarInactiveTintColor: '#666',
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-        },
       }}
     >
       <Tab.Screen
-        name="Eventos"
+        name="Home"
         component={isOrg ? OrgEventosStack : AttEventosStack}
-        options={{
-          title: isOrg ? 'Mis Eventos' : 'Eventos',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={isOrg ? 'briefcase-outline' : 'calendar-outline'} size={size} color={color} />
-          ),
-        }}
       />
-
-      <Tab.Screen
-        name="Mapa"
-        component={isOrg ? OrgMapaStack : AttMapaStack} // We'll implement this stack/screen next
-        options={{
-          tabBarLabel: () => null, // Hide label for the center button
-          tabBarIcon: ({ focused }) => (
-            <View
-              style={{
-                top: -20, // Float up
-                width: 70,
-                height: 70,
-                borderRadius: 35,
-                backgroundColor: focused ? '#00D9FF' : '#222',
-                justifyContent: 'center',
-                alignItems: 'center',
-                shadowColor: '#00D9FF',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: focused ? 0.5 : 0,
-                shadowRadius: 10,
-                elevation: 5,
-                borderWidth: 4,
-                borderColor: '#000', // Match background to look like it cuts out
-              }}
-            >
-              <Ionicons
-                name="map"
-                size={32}
-                color={focused ? '#000' : '#666'}
-              />
-            </View>
-          ),
-        }}
-      />
-
       <Tab.Screen
         name="Tickets"
         component={isOrg ? OrgTicketsStack : AttTicketsStack}
-        options={{
-          title: isOrg ? 'Escanear' : 'Mis Tickets',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={isOrg ? 'qr-code-outline' : 'ticket-outline'} size={size} color={color} />
-          ),
-        }}
+      />
+      <Tab.Screen
+        name="Mapa"
+        component={isOrg ? OrgMapaStack : AttMapaStack}
+      />
+      <Tab.Screen
+        name="Swap"
+        component={SwapScreen}
+      />
+      <Tab.Screen
+        name="Perfil"
+        component={ProfileScreen}
       />
     </Tab.Navigator>
   );
@@ -272,3 +339,84 @@ export const AppNavigator = () => {
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 16,
+  },
+  tabBarBlur: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  tabBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  tabLabelContainer: {
+    marginTop: 4,
+    height: 6,
+  },
+  tabLabel: {
+    alignItems: 'center',
+  },
+  tabLabelText: {
+    // Active state
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#00D9FF',
+  },
+  mapTabWrapper: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -20,
+  },
+  mapTabOuter: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#333',
+  },
+  mapTabOuterActive: {
+    borderColor: '#00D9FF',
+    shadowColor: '#00D9FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  mapTabInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#1a1a1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapTabInnerActive: {
+    backgroundColor: '#00D9FF',
+  },
+});

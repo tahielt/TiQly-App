@@ -1,62 +1,92 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions, SafeAreaView, StatusBar, Alert } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    Image,
+    TouchableOpacity,
+    ScrollView,
+    Dimensions,
+    SafeAreaView,
+    StatusBar,
+    Alert,
+    Animated,
+    Platform
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { EVENT_CATEGORIES } from '../../lib/mock-data';
 import { eventService } from '../../services/eventService';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import MapView from '../../components/MapView';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const MapScreen = () => {
     const navigation = useNavigation<any>();
     const isFocused = useIsFocused();
     const mapRef = useRef<any>(null);
+
+    // Data State
     const [events, setEvents] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("Todos");
     const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
     const [routeTo, setRouteTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
+    // Card Animation
+    const cardAnim = useRef(new Animated.Value(0)).current;
+
+    // Load events when screen is focused
     useEffect(() => {
         if (isFocused) {
             loadEvents();
         }
-    }, [isFocused, selectedCategory]);
+    }, [isFocused]);
+
+    // Filter events based on category
+    useEffect(() => {
+        let filtered = events;
+        if (selectedCategory !== "Todos") {
+            filtered = filtered.filter(e => e.category === selectedCategory);
+        }
+        setFilteredEvents(filtered);
+
+        // Reset selection if current event is filtered out
+        if (selectedEvent && !filtered.find(e => e.id === selectedEvent.id)) {
+            closeCard();
+        }
+    }, [selectedCategory, events]);
+
+    // Animate card when event is selected/deselected
+    useEffect(() => {
+        Animated.spring(cardAnim, {
+            toValue: selectedEvent ? 1 : 0,
+            tension: 80,
+            friction: 12,
+            useNativeDriver: true,
+        }).start();
+    }, [selectedEvent]);
 
     const loadEvents = async () => {
         try {
             const data = await eventService.getEvents();
-            console.log("Events loaded:", data.length);
             setEvents(data);
-
-            let filtered = data;
-            if (selectedCategory !== "Todos") {
-                filtered = data.filter(e => e.category === selectedCategory);
-            }
-            setFilteredEvents(filtered);
-
-            // If DB is empty, maybe we should warn? 
         } catch (error) {
             console.error("Failed to load events", error);
-            Alert.alert("Error", "No se pudieron cargar los eventos");
-        }
-
-        // Reset selection if filter hides it
-        if (selectedEvent && selectedCategory !== "Todos" && selectedEvent.category !== selectedCategory) {
-            setSelectedEvent(null);
-            setRouteTo(null);
         }
     };
 
-    const handleEventPress = (eventId: string) => {
+    const handleEventPress = useCallback((eventId: string) => {
         const event = events.find(e => e.id === eventId);
         if (event) {
             setSelectedEvent(event);
-            setRouteTo(null); // Reset route when picking new event
+            setRouteTo(null);
         }
-    };
+    }, [events]);
 
-    const handleCardPress = (event: any) => {
-        setSelectedEvent(event);
+    const closeCard = () => {
+        setSelectedEvent(null);
         setRouteTo(null);
     };
 
@@ -65,15 +95,14 @@ const MapScreen = () => {
     };
 
     const handleGetDirections = (event: any) => {
-        if (event.location && event.location.coordinates) {
+        if (event.location?.coordinates) {
             setRouteTo(event.location.coordinates);
-            Alert.alert("Ruta Trazada", "Se ha marcado el camino hacia " + event.title);
         } else {
             Alert.alert("Error", "Este evento no tiene ubicación válida");
         }
     };
 
-    // Transform events for MapView (needs coordinates at top level)
+    // Transform events for MapView
     const mapEvents = filteredEvents
         .filter(e => e.location?.coordinates)
         .map(e => ({
@@ -83,11 +112,22 @@ const MapScreen = () => {
             image: e.coverImage
         }));
 
+    // Format date
+    const formatDate = (dateString: string) => {
+        if (!dateString) return 'Fecha por confirmar';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-AR', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short'
+        });
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
-            {/* Reusable Map Component with Routing */}
+            {/* Map */}
             <MapView
                 ref={mapRef}
                 style={styles.map}
@@ -101,72 +141,117 @@ const MapScreen = () => {
                 routeTo={routeTo}
             />
 
-            {/* Header Overlay */}
-            <SafeAreaView style={styles.headerContainer} pointerEvents="box-none">
-                <View style={styles.headerGlass}>
-                    <Text style={styles.headerTitle}>Mapa de Eventos</Text>
-                    <TouchableOpacity style={styles.filterButton}>
-                        <Ionicons name="filter" size={20} color="#000" />
-                    </TouchableOpacity>
+            {/* Header */}
+            <SafeAreaView style={styles.headerSafe} pointerEvents="box-none">
+                <View style={styles.header}>
+                    <View style={styles.headerMain}>
+                        <Text style={styles.headerTitle}>¿Qué hacemos hoy?</Text>
+                        <TouchableOpacity
+                            style={styles.locateBtn}
+                            onPress={() => mapRef.current?.centerOnUser()}
+                        >
+                            <Ionicons name="locate" size={20} color="#00D9FF" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                {/* Category Chips & Locate Button Row */}
-                <View style={styles.filtersRow}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chipsContent}>
-                        {EVENT_CATEGORIES.map((cat) => (
+                {/* Category Filters */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.filtersScroll}
+                    contentContainerStyle={styles.filtersContent}
+                >
+                    {EVENT_CATEGORIES.map((cat) => {
+                        const isActive = selectedCategory === cat;
+                        return (
                             <TouchableOpacity
                                 key={cat}
-                                style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+                                style={[styles.chip, isActive && styles.chipActive]}
                                 onPress={() => setSelectedCategory(cat)}
                             >
-                                <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
+                                <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+                                    {cat}
+                                </Text>
                             </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-
-                    {/* Locate Button */}
-                    <TouchableOpacity
-                        style={styles.locateButton}
-                        onPress={() => mapRef.current?.centerOnUser()}
-                    >
-                        <Ionicons name="navigate" size={20} color="#00D9FF" />
-                    </TouchableOpacity>
-                </View>
+                        );
+                    })}
+                </ScrollView>
             </SafeAreaView>
 
-            {/* Bottom Sheet - Only shows when event is selected */}
-            {selectedEvent && (
-                <View style={styles.bottomSheet}>
-                    <View style={styles.selectedEventCard}>
-                        <TouchableOpacity style={styles.closeButton} onPress={() => { setSelectedEvent(null); setRouteTo(null); }}>
+            {/* Compact Event Card */}
+            <Animated.View
+                style={[
+                    styles.cardContainer,
+                    {
+                        transform: [{
+                            translateY: cardAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [200, 0],
+                            })
+                        }],
+                        opacity: cardAnim,
+                    }
+                ]}
+                pointerEvents={selectedEvent ? 'auto' : 'none'}
+            >
+                {selectedEvent && (
+                    <View style={styles.card}>
+                        {/* Close Button */}
+                        <TouchableOpacity
+                            style={styles.closeBtn}
+                            onPress={closeCard}
+                        >
                             <Ionicons name="close" size={20} color="#fff" />
                         </TouchableOpacity>
-                        <Image source={{ uri: selectedEvent.coverImage }} style={styles.selectedImage} />
-                        <View style={styles.selectedContent}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.selectedTitle} numberOfLines={1}>{selectedEvent.title}</Text>
-                                <Text style={styles.selectedLocation} numberOfLines={1}>
-                                    <Ionicons name="location" size={12} color="#888" /> {selectedEvent.location?.address || 'Sin dirección'}
+
+                        {/* Event Image */}
+                        <Image
+                            source={{ uri: selectedEvent.coverImage }}
+                            style={styles.cardImage}
+                        />
+
+                        {/* Content */}
+                        <View style={styles.cardContent}>
+                            <View style={styles.cardInfo}>
+                                <Text style={styles.cardTitle} numberOfLines={1}>
+                                    {selectedEvent.title}
                                 </Text>
-                                <Text style={styles.selectedDate}>
-                                    {selectedEvent.startDate ? new Date(selectedEvent.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Fecha pendiente'}
+
+                                <View style={styles.cardMeta}>
+                                    <Ionicons name="location" size={14} color="#888" />
+                                    <Text style={styles.cardLocation} numberOfLines={1}>
+                                        {selectedEvent.location?.address || 'Sin dirección'}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.cardDate}>
+                                    {formatDate(selectedEvent.startDate)}
                                 </Text>
                             </View>
-                            <View style={styles.actionButtons}>
-                                <TouchableOpacity style={styles.routeButton} onPress={() => handleGetDirections(selectedEvent)}>
+
+                            {/* Actions */}
+                            <View style={styles.cardActions}>
+                                <TouchableOpacity
+                                    style={styles.directionsBtn}
+                                    onPress={() => handleGetDirections(selectedEvent)}
+                                >
                                     <Ionicons name="navigate-outline" size={16} color="#000" />
-                                    <Text style={styles.routeButtonText}>Cómo llegar</Text>
+                                    <Text style={styles.directionsBtnText}>Cómo llegar</Text>
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.viewEventButton} onPress={() => navigateToDetail(selectedEvent)}>
-                                    <Text style={styles.viewEventText}>Ver Evento</Text>
+                                <TouchableOpacity
+                                    style={styles.viewBtn}
+                                    onPress={() => navigateToDetail(selectedEvent)}
+                                >
+                                    <Text style={styles.viewBtnText}>Ver Evento</Text>
                                     <Ionicons name="arrow-forward" size={16} color="#000" />
                                 </TouchableOpacity>
                             </View>
                         </View>
                     </View>
-                </View>
-            )}
+                )}
+            </Animated.View>
         </View>
     );
 };
@@ -174,71 +259,63 @@ const MapScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000000',
+        backgroundColor: '#000',
     },
     map: {
         flex: 1,
     },
-    headerContainer: {
-        paddingTop: 10,
-        paddingHorizontal: 20,
+
+    // Header
+    headerSafe: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         zIndex: 10,
     },
-    headerGlass: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: 'rgba(20,20,20,0.8)',
-        padding: 15,
+    header: {
+        marginHorizontal: 20,
+        marginTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 10,
+        backgroundColor: 'rgba(20,20,20,0.9)',
         borderRadius: 16,
-        marginBottom: 10,
+        padding: 16,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
     },
+    headerMain: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
     headerTitle: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontSize: 20,
+        fontWeight: '700',
     },
-    filterButton: {
-        backgroundColor: '#00D9FF',
-        padding: 8,
-        borderRadius: 10,
-    },
-    filtersRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    chipsScroll: {
-        maxHeight: 50,
-        flex: 1, // Take available space
-    },
-    chipsContent: {
-        paddingBottom: 10,
-        gap: 8,
-        paddingRight: 10,
-    },
-    locateButton: {
-        backgroundColor: 'rgba(20,20,20,0.8)',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+    locateBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(0,217,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#00D9FF',
-        marginBottom: 10, // Align with chips padding
+        borderColor: 'rgba(0,217,255,0.3)',
+    },
+
+    // Filters
+    filtersScroll: {
+        marginTop: 12,
+    },
+    filtersContent: {
+        paddingHorizontal: 20,
+        gap: 8,
     },
     chip: {
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 10,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.2)',
     },
@@ -248,154 +325,112 @@ const styles = StyleSheet.create({
     },
     chipText: {
         color: '#fff',
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '600',
     },
     chipTextActive: {
         color: '#000',
     },
-    bottomSheet: {
+
+    // Card
+    cardContainer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 100,
         left: 20,
         right: 20,
-        backgroundColor: 'rgba(17,17,17,0.95)',
-        borderRadius: 24,
-        padding: 15,
-        paddingBottom: 25,
+        zIndex: 20,
+    },
+    card: {
+        backgroundColor: 'rgba(17,17,17,0.98)',
+        borderRadius: 20,
+        flexDirection: 'row',
+        padding: 12,
         borderWidth: 1,
-        borderColor: '#333',
+        borderColor: 'rgba(255,255,255,0.1)',
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
         elevation: 10,
     },
-    bottomHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-        paddingHorizontal: 5,
-    },
-    bottomSheetTitle: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    eventCount: {
-        color: '#666',
-        fontSize: 12,
-    },
-    eventCard: {
-        width: 160,
-        backgroundColor: '#222',
-        borderRadius: 16,
-        overflow: 'hidden',
-    },
-    eventImage: {
-        width: '100%',
-        height: 100,
-    },
-    eventInfo: {
-        padding: 10,
-    },
-    priceTag: {
+    closeBtn: {
         position: 'absolute',
-        top: -10,
-        right: 10,
-        backgroundColor: '#00D9FF',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    priceText: {
-        color: '#000',
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    eventTitle: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: 'bold',
-        marginBottom: 4,
-        marginTop: 4,
-    },
-    eventLocation: {
-        color: '#888',
-        fontSize: 12,
-    },
-    selectedEventCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    closeButton: {
-        position: 'absolute',
-        top: -10,
-        right: -10,
-        padding: 5,
+        top: 8,
+        right: 8,
         zIndex: 10,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    selectedImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 12,
+    cardImage: {
+        width: 90,
+        height: 90,
+        borderRadius: 14,
     },
-    selectedContent: {
+    cardContent: {
         flex: 1,
-        height: 80,
+        marginLeft: 14,
         justifyContent: 'space-between',
     },
-    selectedTitle: {
+    cardInfo: {
+        gap: 4,
+    },
+    cardTitle: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
+        fontSize: 17,
+        fontWeight: '700',
     },
-    selectedLocation: {
-        color: '#aaa',
-        fontSize: 12,
-        marginTop: 2,
+    cardMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
-    selectedDate: {
+    cardLocation: {
+        color: '#888',
+        fontSize: 13,
+        flex: 1,
+    },
+    cardDate: {
         color: '#00D9FF',
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginTop: 2,
+        fontSize: 13,
+        fontWeight: '600',
     },
-    actionButtons: {
+    cardActions: {
         flexDirection: 'row',
         gap: 8,
-        marginTop: 4,
+        marginTop: 8,
     },
-    viewEventButton: {
+    directionsBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#00D9FF',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
         gap: 4,
-    },
-    viewEventText: {
-        color: '#000',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    routeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
         backgroundColor: '#fff',
-        paddingVertical: 6,
+        paddingVertical: 8,
         paddingHorizontal: 12,
-        borderRadius: 20,
-        gap: 4,
+        borderRadius: 12,
     },
-    routeButtonText: {
+    directionsBtnText: {
         color: '#000',
-        fontSize: 10,
-        fontWeight: 'bold',
-    }
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    viewBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#00D9FF',
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+    },
+    viewBtnText: {
+        color: '#000',
+        fontSize: 12,
+        fontWeight: '700',
+    },
 });
 
 export default MapScreen;

@@ -42,11 +42,11 @@ const EventDetailScreen = () => {
             }
 
             // Create purchase data
-            const basePrice = event.price || 0;
+            const basePrice = event.ticketTypes?.[0]?.price || event.price || 0;
             const platformFee = basePrice * 0.15; // 15% fee
             const purchaseData = {
                 eventId: event.id,
-                ticketTypeId: 'general',
+                ticketTypeId: '',
                 quantity: 1,
                 totalAmount: basePrice,
                 platformFee: platformFee,

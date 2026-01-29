@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   content: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     alignItems: 'center',
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#111',
+    borderColor: '#00D9FF',
   },
   editAvatar: {
     position: 'absolute',
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#00D9FF',
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '900',
   },
   statLabel: {

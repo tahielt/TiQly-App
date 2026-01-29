@@ -34,7 +34,7 @@ export const purchaseTicket = async (
     id: ticketId,
     event_id: purchaseData.eventId,
     user_id: userId,
-    ticket_type_id: purchaseData.ticketTypeId || null,
+    ticket_type_id: (purchaseData.ticketTypeId && purchaseData.ticketTypeId.length > 30) ? purchaseData.ticketTypeId : null,
     qr_code: qrCode,
     status: 'active',
     price_paid: purchaseData.totalAmount, // Schema uses price_paid
