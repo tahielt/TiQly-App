@@ -4,6 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { getEvents, EVENT_CATEGORIES } from '../../lib/mock-data';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import MapView from '../../components/MapView';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import FocusModeCard from '../../components/FocusModeCard';
 
 const MapScreen = () => {
     const navigation = useNavigation<any>();
@@ -40,27 +43,20 @@ const MapScreen = () => {
     const handleEventPress = (eventId: string) => {
         const event = events.find(e => e.id === eventId);
         if (event) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setSelectedEvent(event);
             setRouteTo(null); // Reset route when picking new event
         }
     };
 
     const handleCardPress = (event: any) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedEvent(event);
         setRouteTo(null);
     };
 
     const navigateToDetail = (event: any) => {
         navigation.navigate('AttEventoDetalle', { eventId: event.id });
-    };
-
-    const handleGetDirections = (event: any) => {
-        if (event.location && event.location.coordinates) {
-            setRouteTo(event.location.coordinates);
-            Alert.alert("Ruta Trazada", "Se ha marcado el camino hacia " + event.title);
-        } else {
-            Alert.alert("Error", "Este evento no tiene ubicación válida");
-        }
     };
 
     return (
@@ -80,8 +76,18 @@ const MapScreen = () => {
                 routeTo={routeTo}
             />
 
-            {/* Header Overlay */}
-            <SafeAreaView style={styles.headerContainer} pointerEvents="box-none">
+            {/* Focus Mode Blur Overlay */}
+            {selectedEvent && (
+                <BlurView
+                    style={StyleSheet.absoluteFill}
+                    intensity={80}
+                    tint="dark"
+                    experimentalBlurMethod='dimezisBlurView' // Better performance
+                />
+            )}
+
+            {/* Header Overlay - Hide in Focus Mode or Keep? User said "El mapa no desaparece, se oscurece". Header should probably stay but dimmed? Or just keep it. */}
+            <SafeAreaView style={[styles.headerContainer, { opacity: selectedEvent ? 0.3 : 1 }]} pointerEvents={selectedEvent ? "none" : "auto"}>
                 <View style={styles.headerGlass}>
                     <Text style={styles.headerTitle}>Mapa de Eventos</Text>
                     <TouchableOpacity style={styles.filterButton}>
@@ -103,60 +109,40 @@ const MapScreen = () => {
                 </ScrollView>
             </SafeAreaView>
 
-            {/* Bottom Sheet / Event List */}
-            <View style={styles.bottomSheet}>
-                {selectedEvent ? (
-                    <View style={styles.selectedEventCard}>
-                        <TouchableOpacity style={styles.closeButton} onPress={() => { setSelectedEvent(null); setRouteTo(null); }}>
-                            <Ionicons name="close" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <Image source={{ uri: selectedEvent.coverImage }} style={styles.selectedImage} />
-                        <View style={styles.selectedContent}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.selectedTitle} numberOfLines={1}>{selectedEvent.title}</Text>
-                                <Text style={styles.selectedLocation} numberOfLines={1}>
-                                    <Ionicons name="location" size={12} color="#888" /> {selectedEvent.location?.address || 'Sin dirección'}
-                                </Text>
-                                <Text style={styles.selectedDate}>
-                                    {selectedEvent.startDate ? new Date(selectedEvent.startDate).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Fecha pendiente'}
-                                </Text>
-                            </View>
-                            <View style={styles.actionButtons}>
-                                <TouchableOpacity style={styles.routeButton} onPress={() => handleGetDirections(selectedEvent)}>
-                                    <Ionicons name="navigate-outline" size={16} color="#000" />
-                                    <Text style={styles.routeButtonText}>Cómo llegar</Text>
-                                </TouchableOpacity>
+            {/* Focus Mode Card Centered */}
+            {selectedEvent && (
+                <View style={styles.focusModeContainer}>
+                    <FocusModeCard
+                        event={selectedEvent}
+                        onPress={() => navigateToDetail(selectedEvent)}
+                        onClose={() => setSelectedEvent(null)}
+                    />
+                </View>
+            )}
 
-                                <TouchableOpacity style={styles.viewEventButton} onPress={() => navigateToDetail(selectedEvent)}>
-                                    <Text style={styles.viewEventText}>Ver Evento</Text>
-                                    <Ionicons name="arrow-forward" size={16} color="#000" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
+            {/* Bottom Sheet List (Only when NO event is selected) */}
+            {!selectedEvent && (
+                <View style={styles.bottomSheet}>
+                    <View style={styles.bottomHeader}>
+                        <Text style={styles.bottomSheetTitle}>Eventos Cercanos</Text>
+                        <Text style={styles.eventCount}>{filteredEvents.length} eventos</Text>
                     </View>
-                ) : (
-                    <>
-                        <View style={styles.bottomHeader}>
-                            <Text style={styles.bottomSheetTitle}>Eventos Cercanos</Text>
-                            <Text style={styles.eventCount}>{filteredEvents.length} eventos</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 15, paddingRight: 20 }}>
-                            {filteredEvents.map((event) => (
-                                <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => handleCardPress(event)}>
-                                    <Image source={{ uri: event.coverImage }} style={styles.eventImage} />
-                                    <View style={styles.eventInfo}>
-                                        <View style={styles.priceTag}>
-                                            <Text style={styles.priceText}>${event.price}</Text>
-                                        </View>
-                                        <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-                                        <Text style={styles.eventLocation} numberOfLines={1}>{event.location?.address || 'Sin dirección'}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 15, paddingRight: 20 }}>
+                        {filteredEvents.map((event) => (
+                            <TouchableOpacity key={event.id} style={styles.eventCard} onPress={() => handleCardPress(event)}>
+                                <Image source={{ uri: event.coverImage }} style={styles.eventImage} />
+                                <View style={styles.eventInfo}>
+                                    <View style={styles.priceTag}>
+                                        <Text style={styles.priceText}>${event.price}</Text>
                                     </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    </>
-                )}
-            </View>
+                                    <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+                                    <Text style={styles.eventLocation} numberOfLines={1}>{event.location?.address || 'Sin dirección'}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
         </View>
     );
 };
@@ -176,7 +162,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 10,
+        zIndex: 10, // Below FocusCard (zIndex implicit via View order or explicit)
     },
     headerGlass: {
         flexDirection: 'row',
@@ -226,6 +212,15 @@ const styles = StyleSheet.create({
     chipTextActive: {
         color: '#000',
     },
+    // Focus Mode
+    focusModeContainer: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 20,
+        paddingTop: 40, // Offset for status bar visually
+    },
+    // Bottom Sheet
     bottomSheet: {
         position: 'absolute',
         bottom: 20,
@@ -297,77 +292,6 @@ const styles = StyleSheet.create({
         color: '#888',
         fontSize: 12,
     },
-    selectedEventCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    closeButton: {
-        position: 'absolute',
-        top: -10,
-        right: -10,
-        padding: 5,
-        zIndex: 10,
-    },
-    selectedImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 12,
-    },
-    selectedContent: {
-        flex: 1,
-        height: 80,
-        justifyContent: 'space-between',
-    },
-    selectedTitle: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    selectedLocation: {
-        color: '#aaa',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    selectedDate: {
-        color: '#00D9FF',
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginTop: 2,
-    },
-    actionButtons: {
-        flexDirection: 'row',
-        gap: 8,
-        marginTop: 4,
-    },
-    viewEventButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#00D9FF',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        gap: 4,
-    },
-    viewEventText: {
-        color: '#000',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    routeButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: 6,
-        paddingHorizontal: 12,
-        borderRadius: 20,
-        gap: 4,
-    },
-    routeButtonText: {
-        color: '#000',
-        fontSize: 10,
-        fontWeight: 'bold',
-    }
 });
 
 export default MapScreen;
