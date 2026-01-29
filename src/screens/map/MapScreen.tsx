@@ -19,6 +19,9 @@ import { EVENT_CATEGORIES } from '../../lib/mock-data';
 import { eventService } from '../../services/eventService';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import MapView from '../../components/MapView';
+import { BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
+import FocusModeCard from '../../components/FocusModeCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -80,6 +83,7 @@ const MapScreen = () => {
     const handleEventPress = useCallback((eventId: string) => {
         const event = events.find(e => e.id === eventId);
         if (event) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setSelectedEvent(event);
             setRouteTo(null);
         }
@@ -122,7 +126,6 @@ const MapScreen = () => {
             month: 'short'
         });
     };
-
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 10,
+        zIndex: 10, // Below FocusCard (zIndex implicit via View order or explicit)
     },
     header: {
         marginHorizontal: 20,
@@ -331,7 +334,6 @@ const styles = StyleSheet.create({
     chipTextActive: {
         color: '#000',
     },
-
     // Card
     cardContainer: {
         position: 'absolute',
@@ -355,6 +357,7 @@ const styles = StyleSheet.create({
     },
     closeBtn: {
         position: 'absolute',
+<<<<<<< HEAD
         top: 8,
         right: 8,
         zIndex: 10,
@@ -431,6 +434,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
+},
 });
 
 export default MapScreen;
