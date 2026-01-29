@@ -6,7 +6,8 @@ import { eventService } from '../../../services/eventService';
 import { purchaseTicket } from '../../../services/ticketService';
 import { supabase } from '../../../lib/supabase';
 import { Event } from '../../../types/event';
-import { Video, ResizeMode, Audio } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import TicketSelector from '../../../components/TicketSelector';
@@ -25,16 +26,19 @@ const EventDetailScreen = () => {
     const [isSelectorVisible, setIsSelectorVisible] = useState(false);
 
     // Audio Preview State
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const audioPlayer = useAudioPlayer('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+
+    // Video Player - must be before any conditional returns (React hooks rules)
+    const defaultVideoUrl = 'https://assets.mixkit.co/videos/preview/mixkit-party-crowd-concert-2023-large.mp4';
+    const videoPlayer = useVideoPlayer(event?.videoUrl || defaultVideoUrl, player => {
+        player.loop = true;
+        player.muted = true;
+        player.play();
+    });
 
     useEffect(() => {
         loadEvent();
-        return () => {
-            if (sound) {
-                sound.unloadAsync();
-            }
-        };
     }, [eventId]);
 
     const loadEvent = async () => {
@@ -51,21 +55,11 @@ const EventDetailScreen = () => {
     const toggleAudioPreview = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        if (sound) {
-            if (isPlayingAudio) {
-                await sound.pauseAsync();
-                setIsPlayingAudio(false);
-            } else {
-                await sound.playAsync();
-                setIsPlayingAudio(true);
-            }
+        if (isPlayingAudio) {
+            audioPlayer.pause();
+            setIsPlayingAudio(false);
         } else {
-            // Load dummy audio for MVP
-            const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-                { shouldPlay: true }
-            );
-            setSound(newSound);
+            audioPlayer.play();
             setIsPlayingAudio(true);
         }
     };
@@ -150,23 +144,16 @@ const EventDetailScreen = () => {
         );
     }
 
-    // Mock video URL if missing (MVP)
-    const videoSource = event.videoUrl
-        ? { uri: event.videoUrl }
-        : { uri: 'https://assets.mixkit.co/videos/preview/mixkit-party-crowd-concert-2023-large.mp4' };
-
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
             {/* 🎥 Hero Video Background */}
-            <Video
-                source={videoSource}
+            <VideoView
+                player={videoPlayer}
                 style={StyleSheet.absoluteFill}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted={true}
+                contentFit="cover"
+                nativeControls={false}
             />
 
             {/* Gradient Overlay for Readability */}

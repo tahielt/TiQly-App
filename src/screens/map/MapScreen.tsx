@@ -357,7 +357,6 @@ const styles = StyleSheet.create({
     },
     closeBtn: {
         position: 'absolute',
-<<<<<<< HEAD
         top: 8,
         right: 8,
         zIndex: 10,
@@ -434,7 +433,6 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
-},
 });
 
 export default MapScreen;

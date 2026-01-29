@@ -1,15 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Vibration } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withSpring,
-    withTiming,
-    interpolateColor,
-    useDerivedValue
-} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
@@ -21,7 +13,7 @@ interface TicketTier {
     color: string;
     textColor: string;
     perks: string[];
-    souvenirImage: string; // URL for the NFT/Souvenir
+    souvenirImage: string;
 }
 
 const TIERS: TicketTier[] = [
@@ -29,28 +21,28 @@ const TIERS: TicketTier[] = [
         id: 'general',
         name: 'GENERAL',
         price: 15000,
-        color: '#00D9FF', // Cyan
+        color: '#00D9FF',
         textColor: '#000',
         perks: ['Acceso General', 'Barra Principal'],
-        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6298/6298900.png', // Generic NFT placeholder
+        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6298/6298900.png',
     },
     {
         id: 'vip',
         name: 'VIP GOLD',
         price: 35000,
-        color: '#FFD700', // Gold
+        color: '#FFD700',
         textColor: '#000',
         perks: ['Acceso Rápido', 'Sector VIP', 'Barra Premium', 'NFT Exclusivo'],
-        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6941/6941697.png', // Gold NFT placeholder
+        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6941/6941697.png',
     },
     {
         id: 'backstage',
         name: 'BACKSTAGE',
         price: 80000,
-        color: '#E4CCFF', // Platinum/Purple
+        color: '#E4CCFF',
         textColor: '#000',
         perks: ['All Access', 'Meet & Greet', 'Bebidas Libres', 'NFT Legendario'],
-        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6229/6229280.png', // Diamond NFT
+        souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6229/6229280.png',
     }
 ];
 
@@ -63,12 +55,17 @@ interface TicketSelectorProps {
 const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSelect }) => {
     const [selectedTierIndex, setSelectedTierIndex] = useState(0);
     const selectedTier = TIERS[selectedTierIndex];
-
-    const transitionValue = useSharedValue(0);
+    const shadowAnim = useRef(new Animated.Value(0.5)).current;
 
     useEffect(() => {
-        transitionValue.value = withTiming(selectedTierIndex, { duration: 300 });
-    }, [selectedTierIndex]);
+        // Simple shadow pulse animation
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(shadowAnim, { toValue: 0.8, duration: 1000, useNativeDriver: false }),
+                Animated.timing(shadowAnim, { toValue: 0.5, duration: 1000, useNativeDriver: false }),
+            ])
+        ).start();
+    }, []);
 
     const handleTierChange = (index: number) => {
         if (index !== selectedTierIndex) {
@@ -77,23 +74,17 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
         }
     };
 
-    const animatedContainerStyle = useAnimatedStyle(() => {
-        // Interpolate colors based on tier
-        // 0 -> Cyan, 1 -> Gold, 2 -> Platinum
-        return {
-            shadowColor: selectedTier.color,
-            shadowOpacity: 0.8,
-            shadowRadius: 20,
-        };
-    });
-
     if (!visible) return null;
 
     return (
         <View style={styles.overlay}>
             <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
 
-            <Animated.View style={[styles.container, animatedContainerStyle]}>
+            <Animated.View style={[styles.container, {
+                shadowColor: selectedTier.color,
+                shadowOpacity: shadowAnim,
+                shadowRadius: 20,
+            }]}>
                 {/* Header with Switch */}
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Tu Experiencia</Text>
@@ -102,7 +93,7 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     </TouchableOpacity>
                 </View>
 
-                {/* Tiers Switch - Gamified Toggle */}
+                {/* Tiers Switch */}
                 <View style={styles.switchContainer}>
                     {TIERS.map((tier, index) => (
                         <TouchableOpacity
@@ -123,9 +114,8 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     ))}
                 </View>
 
-                {/* Main Content Area */}
+                {/* Main Content */}
                 <View style={styles.content}>
-                    {/* Souvenir/NFT Preview - "Loot Box" feel */}
                     <View style={styles.souvenirContainer}>
                         <LinearGradient
                             colors={[selectedTier.color, 'transparent']}
@@ -192,6 +182,7 @@ const styles = StyleSheet.create({
         minHeight: 500,
         borderWidth: 1,
         borderColor: '#333',
+        shadowOffset: { width: 0, height: 0 },
     },
     header: {
         flexDirection: 'row',
