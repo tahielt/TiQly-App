@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Event, EventFilter, EventType } from '../../../types/event';
-import { getEvents } from '../../../services/eventService';
+import { eventService } from '../../../services/eventService';
 import { colors, spacing, typography } from '../../../theme';
 import * as Location from 'expo-location';
 
@@ -60,11 +60,10 @@ const EventsFeedScreen = () => {
   const loadEvents = async () => {
     try {
       const filter: EventFilter = {
-        search: searchText || undefined,
         type: selectedType !== 'all' ? [selectedType] : undefined
       };
 
-      const fetchedEvents = await getEvents(filter);
+      const fetchedEvents = await eventService.getEvents();
       setEvents(fetchedEvents);
     } catch (error) {
       console.error('Error loading events:', error);
@@ -137,15 +136,15 @@ const EventsFeedScreen = () => {
   const renderEvent = ({ item }: { item: Event }) => {
     const distance = userLocation
       ? calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          item.location.coordinates.latitude,
-          item.location.coordinates.longitude
-        )
+        userLocation.latitude,
+        userLocation.longitude,
+        item.location.coordinates.latitude,
+        item.location.coordinates.longitude
+      )
       : null;
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.eventCard}
         onPress={() => handleEventPress(item.id)}
       >
@@ -165,11 +164,11 @@ const EventsFeedScreen = () => {
           </View>
 
           <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
-          
+
           <Text style={styles.eventDate}>
             📅 {item.startDate.toLocaleDateString()} - {item.startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
-          
+
           <Text style={styles.eventLocation} numberOfLines={1}>
             📍 {item.location.venue || item.location.address}
             {distance && ` (${distance.toFixed(1)} km)`}
@@ -207,7 +206,7 @@ const EventsFeedScreen = () => {
           value={searchText}
           onChangeText={setSearchText}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
@@ -234,7 +233,7 @@ const EventsFeedScreen = () => {
                   selectedType === type && styles.typeFilterTextActive
                 ]}>
                   {type === 'all' ? '🌐 Todos' :
-                   type === 'public' ? '🌐 Público' : '🔒 Privado'}
+                    type === 'public' ? '🌐 Público' : '🔒 Privado'}
                 </Text>
               </TouchableOpacity>
             ))}

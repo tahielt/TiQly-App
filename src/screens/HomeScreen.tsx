@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView, ScrollView, Dimensions, TextInput, Animated, Keyboard } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { getEvents, EVENT_CATEGORIES } from '../lib/mock-data';
+import { EVENT_CATEGORIES } from '../lib/mock-data';
+import { eventService } from '../services/eventService';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store/store';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH - 60;
@@ -10,6 +13,7 @@ const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH - 60;
 const HomeScreen = () => {
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
+  const { user } = useSelector((state: RootState) => state.auth);
   const [events, setEvents] = useState<any[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
@@ -68,8 +72,13 @@ const HomeScreen = () => {
   }, []);
 
   const loadEvents = async () => {
-    const data = await getEvents();
-    setEvents(data);
+    try {
+      const data = await eventService.getEvents();
+      // If data is empty, we set empty array. The UI already handles empty state.
+      setEvents(data);
+    } catch (error) {
+      console.error("Error loading home events:", error);
+    }
   };
 
   // Featured events (first 5)
@@ -128,13 +137,20 @@ const HomeScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <Image source={require('../../assets/Tiqly nuevo color marca SINLOGO.png')} style={styles.logoImage} resizeMode="contain" />
+        <Image source={require('../../assets/color.png')} style={styles.logoImage} resizeMode="contain" />
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('CreateEvent')}>
-            <Ionicons name="add-circle-outline" size={24} color="#00D9FF" />
+          <TouchableOpacity style={styles.createIconButton} onPress={() => navigation.navigate('CreateEvent')}>
+            <Ionicons name="add" size={24} color="#00D9FF" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate('Profile')}>
-            <Ionicons name="person-circle-outline" size={24} color="#fff" />
+            {user?.avatar ? (
+              <Image
+                source={{ uri: user.avatar }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Ionicons name="person-circle-outline" size={24} color="#fff" />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -273,6 +289,32 @@ const styles = StyleSheet.create({
     padding: 8,
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
+    overflow: 'hidden', // Add this to ensure image stays inside circle
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  createIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#111',
+    borderWidth: 1.5,
+    borderColor: '#00D9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Subtle glow
+    shadowColor: '#00D9FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
   },
   // 🔍 Search Bar Styles
   searchContainer: {

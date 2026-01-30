@@ -2,8 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Dimensions, StatusBar } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getEventById, saveTicket, MOCK_USER } from '../../../lib/mock-data';
-import { Video, ResizeMode, Audio } from 'expo-av';
+import { eventService } from '../../../services/eventService';
+import { purchaseTicket } from '../../../services/ticketService';
+import { supabase } from '../../../lib/supabase';
+import { Event } from '../../../types/event';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import TicketSelector from '../../../components/TicketSelector';
@@ -22,21 +26,24 @@ const EventDetailScreen = () => {
     const [isSelectorVisible, setIsSelectorVisible] = useState(false);
 
     // Audio Preview State
-    const [sound, setSound] = useState<Audio.Sound | null>(null);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+    const audioPlayer = useAudioPlayer('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+
+    // Video Player - must be before any conditional returns (React hooks rules)
+    const defaultVideoUrl = 'https://assets.mixkit.co/videos/preview/mixkit-party-crowd-concert-2023-large.mp4';
+    const videoPlayer = useVideoPlayer(event?.videoUrl || defaultVideoUrl, player => {
+        player.loop = true;
+        player.muted = true;
+        player.play();
+    });
 
     useEffect(() => {
         loadEvent();
-        return () => {
-            if (sound) {
-                sound.unloadAsync();
-            }
-        };
     }, [eventId]);
 
     const loadEvent = async () => {
         try {
-            const data = await getEventById(eventId);
+            const data = await eventService.getEventById(eventId);
             setEvent(data);
         } catch (error) {
             console.error("Error loading event:", error);
@@ -48,21 +55,11 @@ const EventDetailScreen = () => {
     const toggleAudioPreview = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        if (sound) {
-            if (isPlayingAudio) {
-                await sound.pauseAsync();
-                setIsPlayingAudio(false);
-            } else {
-                await sound.playAsync();
-                setIsPlayingAudio(true);
-            }
+        if (isPlayingAudio) {
+            audioPlayer.pause();
+            setIsPlayingAudio(false);
         } else {
-            // Load dummy audio for MVP
-            const { sound: newSound } = await Audio.Sound.createAsync(
-                { uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-                { shouldPlay: true }
-            );
-            setSound(newSound);
+            audioPlayer.play();
             setIsPlayingAudio(true);
         }
     };
@@ -81,40 +78,54 @@ const EventDetailScreen = () => {
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setPurchasing(true);
+        try {
+            // Get current authenticated user
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (!currentUser) {
+                Alert.alert('Error', 'Debes iniciar sesión para comprar.');
+                setPurchasing(false);
+                return;
+            }
 
-        setTimeout(async () => {
-            const newTicket = {
-                id: `ticket_${Date.now()}`,
+            // Create purchase data using tier price
+            const basePrice = tier.price;
+            const platformFee = basePrice * 0.15; // 15% fee
+            const purchaseData = {
                 eventId: event.id,
-                eventTitle: event.title,
-                eventDate: event.startDate,
-                eventLocation: event.location.address,
-                userId: MOCK_USER.id,
-                userName: MOCK_USER.name,
-                userEmail: MOCK_USER.email,
-                price: tier.price, // Use Tier Price
-                tierName: tier.name, // Save Tier Name
-                qrCode: `QR-${Date.now()}`,
-                status: 'active',
-                purchaseDate: new Date(),
+                ticketTypeId: tier.id || '',
+                quantity: 1,
+                totalAmount: basePrice,
+                platformFee: platformFee,
+                finalAmount: basePrice + platformFee
             };
 
-            const success = await saveTicket(newTicket);
-            setPurchasing(false);
+            // Call real ticketService (Supabase)
+            await purchaseTicket(
+                purchaseData,
+                currentUser.id,
+                currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario',
+                currentUser.email || '',
+                {
+                    title: event.title,
+                    date: new Date(event.startDate),
+                    location: event.location?.address || 'Sin dirección'
+                }
+            );
 
-            if (success) {
-                Alert.alert(
-                    '¡Compra Exitosa!',
-                    `Tu entrada ${tier.name} ha sido guardada.`,
-                    [
-                        { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
-                        { text: 'OK' }
-                    ]
-                );
-            } else {
-                Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
-            }
-        }, 1500);
+            setPurchasing(false);
+            Alert.alert(
+                '¡Compra Exitosa!',
+                `Tu entrada ${tier.name} ha sido guardada. Ve a Mis Tickets para ver tu QR.`,
+                [
+                    { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
+                    { text: 'OK' }
+                ]
+            );
+        } catch (error) {
+            console.error('Purchase error:', error);
+            setPurchasing(false);
+            Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
+        }
     };
 
     if (loading) {
@@ -133,23 +144,16 @@ const EventDetailScreen = () => {
         );
     }
 
-    // Mock video URL if missing (MVP)
-    const videoSource = event.videoUrl
-        ? { uri: event.videoUrl }
-        : { uri: 'https://assets.mixkit.co/videos/preview/mixkit-party-crowd-concert-2023-large.mp4' };
-
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
 
             {/* 🎥 Hero Video Background */}
-            <Video
-                source={videoSource}
+            <VideoView
+                player={videoPlayer}
                 style={StyleSheet.absoluteFill}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted={true}
+                contentFit="cover"
+                nativeControls={false}
             />
 
             {/* Gradient Overlay for Readability */}

@@ -20,6 +20,8 @@ import { setActiveRole, logoutUser, updateUserProfile } from '../../features/aut
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { clearAllTestData } from '../../lib/mock-data';
+import { eventService } from '../../services/eventService';
+import { supabase } from '../../lib/supabase';
 
 // Mock saved payment methods
 const MOCK_PAYMENT_METHODS = [
@@ -355,6 +357,45 @@ const ProfileScreen = () => {
             </View>
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={async () => {
+              const { data: { user: currentUser } } = await supabase.auth.getUser();
+              if (!currentUser) {
+                Alert.alert("Error", "Debes estar logueado en Supabase");
+                return;
+              }
+
+              Alert.alert(
+                'Generar Eventos',
+                '¿Crear eventos de prueba (Gotham, Boris, etc.) en la base de datos real?',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  {
+                    text: 'Sí, crear',
+                    onPress: async () => {
+                      try {
+                        await eventService.seedEvents(currentUser.id);
+                        Alert.alert('✅ Listo', 'Los eventos se han creado en Supabase. Recargá el mapa para verlos.');
+                      } catch (error) {
+                        console.error(error);
+                        Alert.alert('❌ Error', 'Hubo un problema al crear los eventos. Revisa la consola.');
+                      }
+                    }
+                  },
+                ]
+              );
+            }}
+          >
+            <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
+              <Ionicons name="cloud-upload-outline" size={22} color="#00D9FF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>Sembrar Eventos de Prueba</Text>
+              <Text style={styles.menuSubtext}>Crea Gotham, Boris, Hash, etc.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#444" />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -555,7 +596,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   content: {
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   header: {
     alignItems: 'center',
@@ -570,7 +611,7 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 3,
-    borderColor: '#111',
+    borderColor: '#00D9FF',
   },
   editAvatar: {
     position: 'absolute',
@@ -618,7 +659,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#00D9FF',
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '900',
   },
   statLabel: {

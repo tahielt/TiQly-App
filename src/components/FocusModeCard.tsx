@@ -1,15 +1,7 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Image } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, {
-    useSharedValue,
-    useAnimatedStyle,
-    withRepeat,
-    withTiming,
-    withSequence
-} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -22,36 +14,32 @@ interface FocusModeCardProps {
 }
 
 const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }) => {
-    // Animation for the "Breathing" Glow
-    const glowOpacity = useSharedValue(0.5);
-    const scale = useSharedValue(0.95);
+    const glowOpacity = useRef(new Animated.Value(0.5)).current;
+    const scale = useRef(new Animated.Value(0.95)).current;
 
     useEffect(() => {
-        glowOpacity.value = withRepeat(
-            withSequence(
-                withTiming(1, { duration: 1500 }),
-                withTiming(0.5, { duration: 1500 })
-            ),
-            -1,
-            true
-        );
+        // Breathing glow animation
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(glowOpacity, { toValue: 1, duration: 1500, useNativeDriver: false }),
+                Animated.timing(glowOpacity, { toValue: 0.5, duration: 1500, useNativeDriver: false }),
+            ])
+        ).start();
 
-        scale.value = withTiming(1, { duration: 400 });
+        // Scale in animation
+        Animated.timing(scale, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     }, []);
 
-    const animatedStyle = useAnimatedStyle(() => ({
-        shadowOpacity: glowOpacity.value,
-        shadowRadius: glowOpacity.value * 20 + 10,
-        transform: [{ scale: scale.value }],
-    }));
-
-    // Mock video if event doesn't have one (for MVP)
-    const videoSource = event.videoUrl
-        ? { uri: event.videoUrl }
-        : { uri: 'https://www.youtube.com/watch?v=-jn8rX-u0zk&list=RD-jn8rX-u0zk&start_radio=1' };
+    // Use event image instead of video for simplicity (avoids expo-av)
+    const imageSource = event.imageUrl
+        ? { uri: event.imageUrl }
+        : { uri: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800' };
 
     return (
-        <Animated.View style={[styles.container, animatedStyle]}>
+        <Animated.View style={[styles.container, {
+            shadowOpacity: glowOpacity,
+            transform: [{ scale }],
+        }]}>
             {/* Outer Glow / Border */}
             <LinearGradient
                 colors={['#00D9FF', 'rgba(0, 217, 255, 0.2)']}
@@ -64,14 +52,11 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
                     activeOpacity={0.9}
                     onPress={onPress}
                 >
-                    {/* Video Background */}
-                    <Video
-                        source={videoSource}
+                    {/* Image Background instead of Video */}
+                    <Image
+                        source={imageSource}
                         style={StyleSheet.absoluteFill}
-                        resizeMode={ResizeMode.COVER}
-                        shouldPlay
-                        isLooping
-                        isMuted={true} // Video loop muted
+                        resizeMode="cover"
                     />
 
                     {/* Overlay Gradient for readability */}
@@ -93,7 +78,7 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
                         </View>
 
                         <View style={styles.info}>
-                            <Text style={styles.category}>{event.category.toUpperCase()}</Text>
+                            <Text style={styles.category}>{event.category?.toUpperCase() || 'EVENTO'}</Text>
                             <Text style={styles.title} numberOfLines={2}>{event.title}</Text>
 
                             <View style={styles.metaRow}>
@@ -101,7 +86,6 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
                                     <Ionicons name="location" size={14} color="#00D9FF" />
                                     <Text style={styles.metaText}>{event.location?.address || 'Ubicación oculta'}</Text>
                                 </View>
-                                {/* Distance could be calculated, using mock for now */}
                                 <View style={styles.metaItem}>
                                     <Ionicons name="walk" size={14} color="#00FF9D" />
                                     <Text style={styles.metaText}>1.2 km</Text>
@@ -123,20 +107,21 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
 const styles = StyleSheet.create({
     container: {
         width: CARD_WIDTH,
-        height: CARD_WIDTH * 1.2, // Portrait aspect ratio
+        height: CARD_WIDTH * 1.2,
         borderRadius: 24,
         shadowColor: '#00D9FF',
         shadowOffset: { width: 0, height: 0 },
-        elevation: 20, // Android
+        shadowRadius: 20,
+        elevation: 20,
     },
     borderGradient: {
         flex: 1,
-        padding: 2, // Border width
+        padding: 2,
         borderRadius: 24,
     },
     innerContainer: {
         flex: 1,
-        borderRadius: 22, // Slightly less than outer
+        borderRadius: 22,
         overflow: 'hidden',
         backgroundColor: '#000',
     },
