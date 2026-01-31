@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
-import Geolocation, {
-  GeoPosition,
-  GeoError,
-  GeoOptions,
-  GeoWatchOptions,
-} from 'react-native-geolocation-service';
+/**
+ * useLocation Hook - Using expo-location
+ * Provides geolocation functionality with Expo APIs
+ */
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as ExpoLocation from 'expo-location';
 
 type Location = {
   latitude: number;
@@ -26,133 +25,47 @@ type LocationError = {
 type UseLocationOptions = {
   enableHighAccuracy?: boolean;
   timeout?: number;
-  maximumAge?: number;
   distanceFilter?: number;
-  useSignificantChanges?: boolean;
-  showsBackgroundLocationIndicator?: boolean;
-  forceRequestLocation?: boolean;
-  forceLocationManager?: boolean;
-  locationProvider?: 'playServices' | 'android' | 'auto' | 'fused';
 };
 
 const defaultOptions: UseLocationOptions = {
   enableHighAccuracy: true,
   timeout: 15000,
-  maximumAge: 10000,
   distanceFilter: 10,
-  useSignificantChanges: false,
-  showsBackgroundLocationIndicator: false,
-  forceRequestLocation: false,
-  forceLocationManager: false,
-  locationProvider: 'auto',
 };
 
 /**
- * A custom hook that provides geolocation functionality.
- * @param {UseLocationOptions} options - Configuration options for location requests.
- * @returns {Object} An object containing location data and control functions.
- *
- * @example
- * function LocationTracker() {
- *   const {
- *     location,
- *     error,
- *     isLoading,
- *     getCurrentPosition,
- *     startWatching,
- *     stopWatching,
- *     clearWatch,
- *     hasLocationPermission,
- *   } = useLocation();
- *
- *   useEffect(() => {
- *     // Request location permission and get current position
- *     const init = async () => {
- *       const hasPermission = await hasLocationPermission();
- *       if (hasPermission) {
- *         await getCurrentPosition();
- *         startWatching();
- *       }
- *     };
- *
- *     init();
- *
- *     return () => {
- *       stopWatching();
- *     };
- *   }, []);
- *
- *   if (isLoading) {
- *     return <ActivityIndicator />;
- *   }
- *
- *   if (error) {
- *     return <Text>Error: {error.message}</Text>;
- *   }
- *
- *   return (
- *     <View>
- *       <Text>Latitude: {location?.latitude}</Text>
- *       <Text>Longitude: {location?.longitude}</Text>
- *       <Text>Accuracy: {location?.accuracy}m</Text>
- *     </View>
- *   );
- * }
+ * Custom hook for geolocation using expo-location
  */
 function useLocation(options: UseLocationOptions = {}) {
   const [location, setLocation] = useState<Location | null>(null);
   const [error, setError] = useState<LocationError | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const watchId = useRef<number | null>(null);
+  const watchSubscription = useRef<ExpoLocation.LocationSubscription | null>(null);
 
-  const mergedOptions = useMemo(
-    () => ({
-      ...defaultOptions,
-      ...options,
-    }),
-    [options]
-  );
-
+  const mergedOptions = {
+    ...defaultOptions,
+    ...options,
+  };
 
   const hasLocationPermission = useCallback(async (): Promise<boolean> => {
-    if (Platform.OS === 'ios') {
-      const status = await Geolocation.requestAuthorization('whenInUse');
-      return status === 'granted';
-    }
-
-    if (Platform.OS === 'android' && Platform.Version < 23) {
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError({
+          code: 1,
+          message: 'Location permission denied by user',
+        });
+        return false;
+      }
       return true;
-    }
-
-    const hasPermission = await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
-    if (hasPermission) {
-      return true;
-    }
-
-    const status = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-    );
-
-    if (status === PermissionsAndroid.RESULTS.GRANTED) {
-      return true;
-    }
-
-    if (status === PermissionsAndroid.RESULTS.DENIED) {
-      setError({
-        code: 1,
-        message: 'Location permission denied by user',
-      });
-    } else if (status === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+    } catch (err) {
       setError({
         code: 2,
-        message: 'Location permission denied - must be enabled in app settings',
+        message: 'Failed to request location permission',
       });
+      return false;
     }
-
-    return false;
   }, []);
 
   const getCurrentPosition = useCallback(async (): Promise<Location | null> => {
@@ -162,106 +75,91 @@ function useLocation(options: UseLocationOptions = {}) {
 
       const hasPermission = await hasLocationPermission();
       if (!hasPermission) {
+        setIsLoading(false);
         return null;
       }
 
-      return new Promise((resolve, reject) => {
-        Geolocation.getCurrentPosition(
-          (position: GeoPosition) => {
-            const location = formatPosition(position);
-            setLocation(location);
-            setIsLoading(false);
-            resolve(location);
-          },
-          (error: GeoError) => {
-            const locationError = formatError(error);
-            setError(locationError);
-            setIsLoading(false);
-            reject(locationError);
-          },
-          {
-            enableHighAccuracy: mergedOptions.enableHighAccuracy,
-            timeout: mergedOptions.timeout,
-            maximumAge: mergedOptions.maximumAge,
-            distanceFilter: mergedOptions.distanceFilter,
-            useSignificantChanges: mergedOptions.useSignificantChanges,
-            showLocationDialog: true,
-            forceRequestLocation: mergedOptions.forceRequestLocation,
-            forceLocationManager: mergedOptions.forceLocationManager,
-          } as GeoOptions
-        );
+      const position = await ExpoLocation.getCurrentPositionAsync({
+        accuracy: mergedOptions.enableHighAccuracy
+          ? ExpoLocation.Accuracy.High
+          : ExpoLocation.Accuracy.Balanced,
       });
-    } catch (error) {
-      const locationError = formatError(error as GeoError);
+
+      const formattedLocation: Location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy ?? null,
+        altitude: position.coords.altitude ?? null,
+        altitudeAccuracy: position.coords.altitudeAccuracy ?? null,
+        heading: position.coords.heading ?? null,
+        speed: position.coords.speed ?? null,
+        timestamp: position.timestamp,
+      };
+
+      setLocation(formattedLocation);
+      setIsLoading(false);
+      return formattedLocation;
+    } catch (err: any) {
+      const locationError: LocationError = {
+        code: err.code || 0,
+        message: err.message || 'Failed to get location',
+      };
       setError(locationError);
       setIsLoading(false);
       return null;
     }
-  }, [hasLocationPermission, mergedOptions]);
+  }, [hasLocationPermission, mergedOptions.enableHighAccuracy]);
 
-  const startWatching = useCallback((): void => {
-    if (watchId.current !== null) {
+  const startWatching = useCallback(async (): Promise<void> => {
+    if (watchSubscription.current) {
       return;
     }
 
-    const watchOptions: GeoWatchOptions = {
-      enableHighAccuracy: mergedOptions.enableHighAccuracy,
-      distanceFilter: mergedOptions.distanceFilter,
-      useSignificantChanges: mergedOptions.useSignificantChanges,
-      interval: 10000, // 10 seconds
-      fastestInterval: 5000, // 5 seconds
-      showLocationDialog: true,
-      forceRequestLocation: mergedOptions.forceRequestLocation,
-      forceLocationManager: mergedOptions.forceLocationManager,
-    };
+    const hasPermission = await hasLocationPermission();
+    if (!hasPermission) {
+      return;
+    }
 
-    watchId.current = Geolocation.watchPosition(
-      (position: GeoPosition) => {
-        setLocation(formatPosition(position));
+    watchSubscription.current = await ExpoLocation.watchPositionAsync(
+      {
+        accuracy: mergedOptions.enableHighAccuracy
+          ? ExpoLocation.Accuracy.High
+          : ExpoLocation.Accuracy.Balanced,
+        distanceInterval: mergedOptions.distanceFilter,
+        timeInterval: 10000, // 10 seconds
       },
-      (error: GeoError) => {
-        setError(formatError(error));
-      },
-      watchOptions
+      (position) => {
+        const formattedLocation: Location = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy ?? null,
+          altitude: position.coords.altitude ?? null,
+          altitudeAccuracy: position.coords.altitudeAccuracy ?? null,
+          heading: position.coords.heading ?? null,
+          speed: position.coords.speed ?? null,
+          timestamp: position.timestamp,
+        };
+        setLocation(formattedLocation);
+      }
     );
-  }, [mergedOptions]);
+  }, [hasLocationPermission, mergedOptions]);
 
   const stopWatching = useCallback((): void => {
-    if (watchId.current !== null) {
-      Geolocation.clearWatch(watchId.current);
-      watchId.current = null;
+    if (watchSubscription.current) {
+      watchSubscription.current.remove();
+      watchSubscription.current = null;
     }
   }, []);
 
   const clearWatch = useCallback((): void => {
-    Geolocation.stopObserving();
-    watchId.current = null;
-  }, []);
+    stopWatching();
+  }, [stopWatching]);
 
   useEffect(() => {
     return () => {
       stopWatching();
-      clearWatch();
     };
-  }, [clearWatch, stopWatching]);
-
-  // Format position to our Location type
-  const formatPosition = (position: GeoPosition): Location => ({
-    latitude: position.coords.latitude,
-    longitude: position.coords.longitude,
-    accuracy: position.coords.accuracy ?? null,
-    altitude: position.coords.altitude ?? null,
-    altitudeAccuracy: position.coords.altitudeAccuracy ?? null,
-    heading: position.coords.heading ?? null,
-    speed: position.coords.speed ?? null,
-    timestamp: position.timestamp,
-  });
-
-  // Format error to our LocationError type
-  const formatError = (error: GeoError): LocationError => ({
-    code: error.code,
-    message: error.message,
-  });
+  }, [stopWatching]);
 
   return {
     location,
@@ -276,3 +174,4 @@ function useLocation(options: UseLocationOptions = {}) {
 }
 
 export default useLocation;
+export { useLocation };

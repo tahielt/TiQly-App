@@ -39,6 +39,9 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
 import SwapScreen from '../screens/swap/SwapScreen';
 
+// Resale screens
+import { CreateResaleScreen, ResaleMarketScreen, MyListingsScreen } from '../screens/resale';
+
 // Pantallas de carga y autenticación (Temporales)
 const LoadingScreen = PlaceholderScreen;
 const LegalScreen = PlaceholderScreen;
@@ -333,6 +336,11 @@ export const AppNavigator = () => {
             <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="AttEventoDetalle" component={EventDetailScreen} />
+            {/* Resale Marketplace Screens */}
+            <Stack.Screen name="CreateResale" component={CreateResaleScreen} />
+            <Stack.Screen name="ResaleMarket" component={ResaleMarketScreen} />
+            <Stack.Screen name="MyListings" component={MyListingsScreen} />
+            <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
           </>
         )}
       </Stack.Navigator>

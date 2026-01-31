@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
@@ -27,7 +27,7 @@ const TicketDetailScreen = () => {
   const route = useRoute<RouteProp<RouteParams, 'params'>>();
   const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
-  
+
   const { ticketId } = route.params;
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -59,7 +59,7 @@ const TicketDetailScreen = () => {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Enviar',
-          onPress: async (email) => {
+          onPress: async (email: string | undefined) => {
             if (!email || !email.includes('@')) {
               Alert.alert('Error', 'Email inválido');
               return;
@@ -149,7 +149,7 @@ const TicketDetailScreen = () => {
       {/* Información del evento */}
       <View style={styles.section}>
         <Text style={styles.eventTitle}>{ticket.eventTitle}</Text>
-        
+
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>📅 Fecha</Text>
           <Text style={styles.infoValue}>
@@ -178,7 +178,7 @@ const TicketDetailScreen = () => {
         <View style={styles.qrSection}>
           <Text style={styles.qrTitle}>Tu Código QR</Text>
           <Text style={styles.qrSubtitle}>Muestra este código en el evento</Text>
-          
+
           <View style={styles.qrContainer}>
             <QRCode
               value={ticket.qrCode}
@@ -197,7 +197,7 @@ const TicketDetailScreen = () => {
       {/* Información del propietario */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Propietario</Text>
-        
+
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>👤 Nombre</Text>
           <Text style={styles.infoValue}>{ticket.userName}</Text>

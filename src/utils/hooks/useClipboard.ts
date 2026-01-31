@@ -124,10 +124,10 @@ function useClipboard() {
 
   return {
     data,
-    hasString: data !== null && data.length > 0,
+    hasStringValue: data !== null && data.length > 0,
     getString,
     setString,
-    hasString: hasString,
+    hasString,
     setImage,
     getImage,
   };

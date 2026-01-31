@@ -2,8 +2,8 @@ import { supabase } from '../lib/supabase';
 import { Ticket, TicketTransfer, TicketValidation, PurchaseData } from '../types/ticket';
 import * as Crypto from 'expo-crypto';
 
-// Platform fee percentage (15%)
-export const PLATFORM_FEE_PERCENTAGE = 0.15;
+// Platform fee percentage (10% as configured in platform_config)
+export const PLATFORM_FEE_PERCENTAGE = 0.10;
 
 // Generate unique QR code for ticket
 const generateQRCode = async (ticketId: string, userId: string, eventId: string): Promise<string> => {

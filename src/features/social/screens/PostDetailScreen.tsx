@@ -18,7 +18,7 @@ type PostDetailRouteProp = {
 const PostDetailScreen = () => {
   const route = useRoute<PostDetailRouteProp>();
   const { postId } = route.params;
-  
+
   const [post, setPost] = useState<Post | null>(null);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,12 +28,18 @@ const PostDetailScreen = () => {
   const loadPost = async () => {
     try {
       const postData = await getPostById(postId);
+      if (!postData) {
+        setLoading(false);
+        return;
+      }
       // Ensure all required fields are present
       const safePost: Post = {
-        ...postData,
+        id: postData.id || `temp_${Date.now()}`,
         userId: postData.userId || 'unknown',
         userName: postData.userName || 'Usuario desconocido',
+        userAvatar: postData.userAvatar,
         content: postData.content || '',
+        imageUrl: postData.imageUrl,
         likes: postData.likes || [],
         comments: postData.comments || [],
         createdAt: postData.createdAt || new Date()
@@ -52,21 +58,21 @@ const PostDetailScreen = () => {
 
   const handleAddComment = async () => {
     if (!comment.trim() || !post) return;
-    
+
     setSubmitting(true);
-    
+
     try {
       const newComment = await addComment(postId, {
         userId: 'current-user-id', // This should come from your auth context
         userName: 'Usuario Actual', // This should come from your auth context
         content: comment,
       });
-      
+
       setPost({
         ...post,
         comments: [...(post.comments || []), newComment],
       });
-      
+
       setComment('');
     } catch (error) {
       console.error('Error adding comment:', error);
@@ -77,19 +83,19 @@ const PostDetailScreen = () => {
 
   const handleToggleLike = async () => {
     if (!post) return;
-    
+
     setLiking(true);
-    
+
     try {
       const userId = 'current-user-id'; // This should come from your auth context
       const currentLikes = post.likes || [];
       const isLiked = currentLikes.includes(userId);
-      
+
       await toggleLike(postId, userId);
-      
+
       setPost({
         ...post,
-        likes: isLiked 
+        likes: isLiked
           ? currentLikes.filter((id: string) => id !== userId)
           : [...currentLikes, userId],
       });
@@ -102,9 +108,9 @@ const PostDetailScreen = () => {
 
   const renderComment = ({ item }: { item: Comment }) => (
     <View style={styles.commentContainer}>
-      <Image 
-        source={{ uri: item.userAvatar || 'https://via.placeholder.com/32' }} 
-        style={styles.commentAvatar} 
+      <Image
+        source={{ uri: item.userAvatar || 'https://via.placeholder.com/32' }}
+        style={styles.commentAvatar}
       />
       <View style={styles.commentContent}>
         <Text style={styles.commentAuthor}>{item.userName}</Text>
@@ -132,15 +138,15 @@ const PostDetailScreen = () => {
     );
   }
 
-  const isLiked = post.likes?.includes('current-user-id') || false; 
+  const isLiked = post.likes?.includes('current-user-id') || false;
 
   return (
     <View style={styles.container}>
       <View style={styles.postContainer}>
         <View style={styles.postHeader}>
-          <Image 
-            source={{ uri: post.userAvatar || 'https://via.placeholder.com/40' }} 
-            style={styles.avatar} 
+          <Image
+            source={{ uri: post.userAvatar || 'https://via.placeholder.com/40' }}
+            style={styles.avatar}
           />
           <View>
             <Text style={styles.userName}>{post.userName}</Text>
@@ -149,19 +155,19 @@ const PostDetailScreen = () => {
             </Text>
           </View>
         </View>
-        
+
         {post.content && <Text style={styles.postContent}>{post.content}</Text>}
-        
+
         {post.imageUrl && (
-          <Image 
-            source={{ uri: post.imageUrl }} 
+          <Image
+            source={{ uri: post.imageUrl }}
             style={styles.postImage}
             resizeMode="cover"
           />
         )}
-        
+
         <View style={styles.postActions}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.actionButton}
             onPress={handleToggleLike}
             disabled={liking}
@@ -170,13 +176,13 @@ const PostDetailScreen = () => {
               {isLiked ? '❤️' : '🤍'} {post.likes?.length || 0}
             </Text>
           </TouchableOpacity>
-          
+
           <Text style={styles.commentsCount}>
             💬 {post.comments?.length || 0} comentarios
           </Text>
         </View>
       </View>
-      
+
       <FlatList
         data={post.comments || []}
         renderItem={renderComment}
@@ -188,7 +194,7 @@ const PostDetailScreen = () => {
           </View>
         }
       />
-      
+
       <View style={styles.commentInputContainer}>
         <TextInput
           style={styles.commentInput}
@@ -197,7 +203,7 @@ const PostDetailScreen = () => {
           onChangeText={setComment}
           placeholderTextColor={colors.textSecondary}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.commentButton, (!comment.trim() || submitting) && styles.disabledButton]}
           onPress={handleAddComment}
           disabled={!comment.trim() || submitting}

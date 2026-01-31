@@ -1,37 +1,76 @@
+// Social Feature Service
+// Note: Social features are pending full implementation
 
-// Mock Social Feature Service
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  createdAt: Date;
+}
 
 export interface Post {
-  id?: string;
+  id: string;
   userId: string;
   userName: string;
   userAvatar?: string;
   content?: string;
   imageUrl?: string;
   likes: string[];
-  comments: any[];
+  comments: Comment[];
   createdAt: Date;
 }
 
+// Get all posts
 export const getPosts = async (): Promise<Post[]> => {
+  // TODO: Implement with Supabase
   return [];
 };
 
-export const createPost = async (post: any): Promise<any> => {
-  return { ...post, id: `post_${Date.now()}`, createdAt: new Date() };
+// Get single post by ID
+export const getPostById = async (postId: string): Promise<Post | null> => {
+  // TODO: Implement with Supabase
+  return null;
 };
 
+// Create a new post
+export const createPost = async (post: Partial<Post>): Promise<Post> => {
+  return {
+    ...post,
+    id: `post_${Date.now()}`,
+    likes: [],
+    comments: [],
+    createdAt: new Date()
+  } as Post;
+};
+
+// Toggle like on a post
 export const toggleLike = async (postId: string, userId: string): Promise<void> => {
-  console.log('Mock: Toggling like', { postId, userId });
+  console.log('Social: Toggling like', { postId, userId });
 };
 
-export const addComment = async (postId: string, comment: any): Promise<any> => {
-  return { ...comment, id: `comm_${Date.now()}`, createdAt: new Date() };
+// Add comment to a post
+export const addComment = async (postId: string, comment: Partial<Comment>): Promise<Comment> => {
+  return {
+    ...comment,
+    id: `comm_${Date.now()}`,
+    postId,
+    createdAt: new Date()
+  } as Comment;
+};
+
+// Get comments for a post
+export const getPostComments = async (postId: string): Promise<Comment[]> => {
+  return [];
 };
 
 export default {
   getPosts,
+  getPostById,
   createPost,
   toggleLike,
-  addComment
+  addComment,
+  getPostComments
 };
