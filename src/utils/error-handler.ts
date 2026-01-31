@@ -1,5 +1,13 @@
 import { logger } from './logger';
 
+// React Native global error handler types
+declare const global: typeof globalThis & {
+  ErrorUtils?: {
+    getGlobalHandler: () => (error: Error, isFatal: boolean) => void;
+    setGlobalHandler: (handler: (error: Error, isFatal: boolean) => void) => void;
+  };
+};
+
 type ErrorInfo = {
   code?: string | number;
   message: string;
@@ -16,13 +24,13 @@ class AppError extends Error {
 
   constructor(info: ErrorInfo) {
     super(info.message);
-    
+
     this.name = this.constructor.name;
     this.code = info.code || 'UNKNOWN_ERROR';
     this.details = info.details;
     this.isOperational = info.isOperational ?? true;
     this.statusCode = info.statusCode || 500;
-    
+
     // Capture stack trace, excluding constructor call from it
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor);
@@ -129,24 +137,24 @@ const errorHandler = {
       } else {
         logger.warn(`Operational error: ${error.message}`, error);
       }
-      
+
       return { error };
     }
-    
+
     // Handle native Error instances
     if (error instanceof Error) {
       const appError = new ServerError(error.message);
       logger.error('Unhandled error:', error);
       return { error: appError };
     }
-    
+
     // Handle string errors
     if (typeof error === 'string') {
       const appError = new ServerError(error);
       logger.error('Unhandled string error:', error);
       return { error: appError };
     }
-    
+
     // Handle unknown error types
     const appError = new ServerError('An unknown error occurred');
     logger.error('Unknown error type:', error);
@@ -165,8 +173,8 @@ const errorHandler = {
   /**
    * Handles unhandled promise rejections
    */
-  handleUnhandledRejection: (reason: {} | null | undefined, promise: Promise<any>) => {
-    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  handleUnhandledRejection: (reason: {} | null | undefined, _promise: Promise<any>) => {
+    logger.error('Unhandled Rejection - reason:', reason);
     // In a real app, you might want to log this to an error tracking service
   },
 
@@ -176,12 +184,12 @@ const errorHandler = {
   setupGlobalHandlers: () => {
     process.on('uncaughtException', errorHandler.handleUncaughtException);
     process.on('unhandledRejection', errorHandler.handleUnhandledRejection);
-    
+
     // Handle React Native's global error handler
     if (typeof global.ErrorUtils !== 'undefined') {
       const defaultHandler = global.ErrorUtils.getGlobalHandler();
-      
-      global.ErrorUtils.setGlobalHandler((error, isFatal) => {
+
+      global.ErrorUtils.setGlobalHandler((error: Error, isFatal: boolean) => {
         logger.error('React Native Global Error:', { error, isFatal });
         defaultHandler(error, isFatal);
       });

@@ -14,7 +14,7 @@ export const getItem = async <T = string>(
   try {
     const value = await AsyncStorage.getItem(key);
     if (value === null) return defaultValue;
-    
+
     try {
       return JSON.parse(value) as T;
     } catch {
@@ -37,7 +37,7 @@ export const setItem = async (
     const item = isObject(value) || Array.isArray(value)
       ? JSON.stringify(value)
       : String(value);
-    
+
     await AsyncStorage.setItem(key, item);
     return true;
   } catch (error) {
@@ -110,7 +110,7 @@ export const multiSet = async (
         ? JSON.stringify(value)
         : String(value),
     ]) as [string, string][];
-    
+
     await AsyncStorage.multiSet(stringifiedItems);
     return true;
   } catch (error) {
@@ -137,7 +137,8 @@ export const multiRemove = async (keys: StorageKey[]): Promise<boolean> => {
  */
 export const getAllKeys = async (): Promise<string[]> => {
   try {
-    return await AsyncStorage.getAllKeys();
+    const keys = await AsyncStorage.getAllKeys();
+    return [...keys]; // Convert readonly array to mutable
   } catch (error) {
     console.error('Error getting all storage keys', error);
     return [];

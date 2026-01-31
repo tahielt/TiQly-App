@@ -8,8 +8,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { SocialStackParamList } from '../../../types/navigation';
 import { createPost } from '../socialService';
 import { colors, spacing, typography } from '../../../theme';
-// Importamos el tipo de usuario de Firebase con un alias para evitar conflictos
-import { User as FirebaseUser } from 'firebase/auth'; 
 
 type CreatePostNavigationProp = NativeStackNavigationProp<SocialStackParamList, 'CreatePost'>;
 
@@ -18,16 +16,13 @@ const CreatePostScreen = () => {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<CreatePostNavigationProp>();
-  
-  // SOLUCIÓN DE TIPADO: Especificamos que el usuario extraído del store
-  // (si existe) debe ser tratado como el tipo FirebaseUser para que las 
-  // propiedades como 'uid' y 'displayName' sean reconocidas.
+
+  // Use Redux auth state (Supabase user)
   const { user } = useSelector((state: RootState) => state.auth);
-  const firebaseUser = user as FirebaseUser | null;
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (status !== 'granted') {
       Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para subir imágenes');
       return;
@@ -51,23 +46,23 @@ const CreatePostScreen = () => {
       return;
     }
 
-    // Usamos el usuario tipado correctamente (firebaseUser) para el chequeo
-    if (!firebaseUser) {
+    // Usamos el usuario tipado correctamente para el chequeo
+    if (!user) {
       Alert.alert('Error', 'Debes iniciar sesión para publicar');
       return;
     }
 
     setLoading(true);
-    
+
     try {
       await createPost({
         content,
-        imageUri: image || undefined,
-        userId: firebaseUser.uid, // Acceso seguro a .uid
-        userName: firebaseUser.displayName || 'Usuario Anónimo', // Acceso seguro a .displayName
-        userAvatar: firebaseUser.photoURL || undefined, // Acceso seguro a .photoURL
+        imageUrl: image || undefined,
+        userId: user.id,
+        userName: user.name || 'Usuario Anónimo',
+        userAvatar: user.avatar || undefined,
       });
-      
+
       navigation.goBack();
     } catch (error) {
       console.error('Error creating post:', error);
@@ -87,15 +82,15 @@ const CreatePostScreen = () => {
         onChangeText={setContent}
         placeholderTextColor={colors.textSecondary}
       />
-      
+
       {image && (
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: image }} 
-            style={styles.image} 
+          <Image
+            source={{ uri: image }}
+            style={styles.image}
             resizeMode="cover"
           />
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.removeImageButton}
             onPress={() => setImage(null)}
           >
@@ -103,16 +98,16 @@ const CreatePostScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-      
+
       <View style={styles.footer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.button}
           onPress={pickImage}
         >
           <Text style={styles.buttonText}>📷 Foto</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={[styles.button, styles.submitButton, loading && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={loading}

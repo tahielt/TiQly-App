@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NetInfo, { NetInfoState, NetInfoSubscription } from '@react-native-community/netinfo';
 
 type ConnectionType = 'none' | 'wifi' | 'cellular' | 'ethernet' | 'unknown' | 'bluetooth' | 'wimax' | 'vpn' | 'other';
@@ -39,28 +39,6 @@ const defaultState: NetworkState = {
   details: {},
 };
 
-/**
- * A custom hook that tracks the network connection state.
- * @returns {NetworkState} An object containing network connection information.
- *
- * @example
- * function NetworkStatus() {
- *   const netInfo = useNetInfo();
- *   
- *   return (
- *     <View>
- *       <Text>Connection Status: {netInfo.isConnected ? 'Online' : 'Offline'}</Text>
- *       <Text>Connection Type: {netInfo.type}</Text>
- *       {netInfo.isInternetReachable !== null && (
- *         <Text>Internet Reachable: {netInfo.isInternetReachable ? 'Yes' : 'No'}</Text>
- *       )}
- *       {netInfo.details.cellularGeneration && (
- *         <Text>Cellular Generation: {netInfo.details.cellularGeneration}</Text>
- *       )}
- *     </View>
- *   );
- * }
- */
 function useNetInfo() {
   const [netInfo, setNetInfo] = useState<NetworkState>(defaultState);
   const subscriptionRef = useRef<NetInfoSubscription | null>(null);

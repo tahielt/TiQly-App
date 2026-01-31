@@ -19,6 +19,19 @@ export type RootStackParamList = {
   CreateEvent: undefined;
   Profile: undefined;
   AttEventoDetalle: { eventId: string };
+  // Resale Marketplace
+  CreateResale: {
+    orderId: string;
+    ticketInfo: {
+      eventTitle: string;
+      eventDate: string;
+      ticketTypeName: string;
+      originalPrice: number;
+    };
+  };
+  ResaleMarket: { eventId: string; eventTitle?: string };
+  MyListings: undefined;
+  MyTickets: undefined;
 };
 
 // Stacks para cada rol
