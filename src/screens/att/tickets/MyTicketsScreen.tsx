@@ -29,10 +29,25 @@ interface StoredTicket {
     purchaseDate: string;
 }
 
+type TicketFilter = 'all' | 'active' | 'for_sale' | 'used';
+
+const FILTER_TABS: { key: TicketFilter; label: string }[] = [
+    { key: 'all', label: 'Todos' },
+    { key: 'active', label: 'Activos' },
+    { key: 'for_sale', label: 'En Venta' },
+    { key: 'used', label: 'Usados' },
+];
+
 const MyTicketsScreen = () => {
     const navigation = useNavigation<any>();
     const [tickets, setTickets] = useState<StoredTicket[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<TicketFilter>('all');
+
+    const filteredTickets = React.useMemo(() => {
+        if (activeFilter === 'all') return tickets;
+        return tickets.filter(t => t.status === activeFilter);
+    }, [tickets, activeFilter]);
 
     const loadTickets = async () => {
         try {
@@ -164,13 +179,42 @@ const MyTicketsScreen = () => {
                 </TouchableOpacity>
             </View>
 
+            {/* Filter Tabs */}
+            <View style={styles.filterContainer}>
+                {FILTER_TABS.map((tab) => {
+                    const count = tab.key === 'all'
+                        ? tickets.length
+                        : tickets.filter(t => t.status === tab.key).length;
+                    const isActive = activeFilter === tab.key;
+
+                    return (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[styles.filterTab, isActive && styles.filterTabActive]}
+                            onPress={() => setActiveFilter(tab.key)}
+                        >
+                            <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
+                                {tab.label}
+                            </Text>
+                            {count > 0 && (
+                                <View style={[styles.filterBadge, isActive && styles.filterBadgeActive]}>
+                                    <Text style={[styles.filterBadgeText, isActive && styles.filterBadgeTextActive]}>
+                                        {count}
+                                    </Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
             <FlatList
-                data={tickets}
+                data={filteredTickets}
                 renderItem={renderTicketItem}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={[
                     styles.listContent,
-                    tickets.length === 0 && styles.emptyListContent,
+                    filteredTickets.length === 0 && styles.emptyListContent,
                 ]}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={renderEmptyState}
@@ -314,6 +358,54 @@ const styles = StyleSheet.create({
         color: '#000',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    // Filter Tabs
+    filterContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#222',
+    },
+    filterTab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        gap: 6,
+    },
+    filterTabActive: {
+        backgroundColor: '#00D9FF',
+    },
+    filterTabText: {
+        color: '#888',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    filterTabTextActive: {
+        color: '#000',
+    },
+    filterBadge: {
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        minWidth: 20,
+        alignItems: 'center',
+    },
+    filterBadgeActive: {
+        backgroundColor: 'rgba(0,0,0,0.2)',
+    },
+    filterBadgeText: {
+        color: '#888',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    filterBadgeTextActive: {
+        color: '#000',
     },
 });
 

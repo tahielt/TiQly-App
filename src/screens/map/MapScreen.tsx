@@ -11,7 +11,9 @@ import {
     StatusBar,
     Alert,
     Animated,
-    Platform
+    Platform,
+    TextInput,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +39,10 @@ const MapScreen = () => {
     const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
     const [routeTo, setRouteTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
+    // Search & Loading State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
     // Card Animation
     const cardAnim = useRef(new Animated.Value(0)).current;
 
@@ -47,19 +53,31 @@ const MapScreen = () => {
         }
     }, [isFocused]);
 
-    // Filter events based on category
+    // Filter events based on category AND search query
     useEffect(() => {
         let filtered = events;
+
+        // Filter by category
         if (selectedCategory !== "Todos") {
             filtered = filtered.filter(e => e.category === selectedCategory);
         }
+
+        // Filter by search query
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            filtered = filtered.filter(e =>
+                e.title?.toLowerCase().includes(query) ||
+                e.location?.address?.toLowerCase().includes(query)
+            );
+        }
+
         setFilteredEvents(filtered);
 
         // Reset selection if current event is filtered out
         if (selectedEvent && !filtered.find(e => e.id === selectedEvent.id)) {
             closeCard();
         }
-    }, [selectedCategory, events]);
+    }, [selectedCategory, events, searchQuery]);
 
     // Animate card when event is selected/deselected
     useEffect(() => {
@@ -72,11 +90,14 @@ const MapScreen = () => {
     }, [selectedEvent]);
 
     const loadEvents = async () => {
+        setIsLoading(true);
         try {
             const data = await eventService.getEvents();
             setEvents(data);
         } catch (error) {
             console.error("Failed to load events", error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -149,13 +170,45 @@ const MapScreen = () => {
                 <View style={styles.header}>
                     <View style={styles.headerMain}>
                         <Text style={styles.headerTitle}>¿Qué hacemos hoy?</Text>
-                        <TouchableOpacity
-                            style={styles.locateBtn}
-                            onPress={() => mapRef.current?.centerOnUser()}
-                        >
-                            <Ionicons name="locate" size={20} color="#00D9FF" />
-                        </TouchableOpacity>
+                        <View style={styles.headerActions}>
+                            {isLoading && (
+                                <ActivityIndicator size="small" color="#00D9FF" style={{ marginRight: 12 }} />
+                            )}
+                            <TouchableOpacity
+                                style={styles.locateBtn}
+                                onPress={() => mapRef.current?.centerOnUser()}
+                            >
+                                <Ionicons name="locate" size={20} color="#00D9FF" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
+
+                    {/* Search Bar */}
+                    <View style={styles.searchContainer}>
+                        <Ionicons name="search" size={18} color="#666" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Buscar eventos..."
+                            placeholderTextColor="#666"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <Ionicons name="close-circle" size={18} color="#666" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* Event Count Badge */}
+                    {filteredEvents.length > 0 && (
+                        <View style={styles.eventCountBadge}>
+                            <Text style={styles.eventCountText}>
+                                {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''}
+                                {selectedCategory !== "Todos" ? ` en ${selectedCategory}` : ''}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* Category Filters */}
@@ -304,6 +357,39 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(0,217,255,0.3)',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginTop: 12,
+        gap: 8,
+    },
+    searchInput: {
+        flex: 1,
+        color: '#fff',
+        fontSize: 15,
+        padding: 0,
+    },
+    eventCountBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: 'rgba(0,217,255,0.2)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginTop: 10,
+    },
+    eventCountText: {
+        color: '#00D9FF',
+        fontSize: 12,
+        fontWeight: '600',
     },
 
     // Filters

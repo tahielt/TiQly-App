@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,25 +13,28 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../../store/store';
-import { setActiveRole, logoutUser, updateUserProfile } from '../../features/auth/authSlice';
+import { logoutUser, updateUserProfile } from '../../features/auth/authSlice';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { clearAllTestData } from '../../lib/mock-data';
 import { eventService } from '../../services/eventService';
 import { supabase } from '../../lib/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
-// Mock saved payment methods
-const MOCK_PAYMENT_METHODS = [
-  { id: '1', type: 'visa', last4: '4242', expiry: '12/27', isDefault: true },
-  { id: '2', type: 'mastercard', last4: '8888', expiry: '03/26', isDefault: false },
-];
+// Payment methods placeholder (will integrate with Mercado Pago later)
+const PLACEHOLDER_PAYMENT_METHODS: any[] = [];
 
 const ProfileScreen = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
+
+  // Real stats from Supabase
+  const [stats, setStats] = useState({ tickets: 0, events: 0, following: 0 });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   // Edit Profile Modal State
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -46,14 +49,46 @@ const ProfileScreen = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
 
-  // Payment Methods State
-  const [paymentMethods, setPaymentMethods] = useState(MOCK_PAYMENT_METHODS);
+  // Payment Methods State (placeholder for Mercado Pago integration)
+  const [paymentMethods, setPaymentMethods] = useState<{ id: string; type: string; last4: string; expiry: string; isDefault: boolean }[]>(PLACEHOLDER_PAYMENT_METHODS);
   const [addCardModalVisible, setAddCardModalVisible] = useState(false);
 
-  const handleToggleRole = () => {
-    const newRole = user?.activeRole === 'attendee' ? 'organizer' : 'attendee';
-    dispatch(setActiveRole(newRole));
-  };
+  // Load real stats from Supabase
+  const loadStats = useCallback(async () => {
+    if (!user?.id) return;
+    setLoadingStats(true);
+    try {
+      // Count user's tickets
+      const { count: ticketCount } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // Count unique events attended
+      const { data: ordersData } = await supabase
+        .from('orders')
+        .select('event_id')
+        .eq('user_id', user.id);
+
+      const uniqueEvents = new Set(ordersData?.map(o => o.event_id) || []);
+
+      setStats({
+        tickets: ticketCount || 0,
+        events: uniqueEvents.size,
+        following: 0 // TODO: Implement following when social is ready
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [user?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [loadStats])
+  );
 
   const handleLogout = () => {
     Alert.alert(
@@ -99,10 +134,10 @@ const ProfileScreen = () => {
     Alert.alert('✅ Perfil Actualizado', 'Tus cambios fueron guardados correctamente.');
   };
 
-  // 🔐 Handle Password Change
-  const handleChangePassword = () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Completá todos los campos');
+  // 🔐 Handle Password Change (Real Supabase Auth)
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Completá la nueva contraseña');
       return;
     }
     if (newPassword.length < 8) {
@@ -114,12 +149,21 @@ const ProfileScreen = () => {
       return;
     }
 
-    // Mock password change
-    setPasswordModalVisible(false);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    Alert.alert('✅ Contraseña Actualizada', 'Tu contraseña fue cambiada exitosamente.');
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      setPasswordModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert('✅ Contraseña Actualizada', 'Tu contraseña fue cambiada exitosamente.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo cambiar la contraseña');
+    }
   };
 
   // 💳 Handle Add Card (Mock)
@@ -189,18 +233,30 @@ const ProfileScreen = () => {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
+            {loadingStats ? (
+              <ActivityIndicator size="small" color="#00D9FF" />
+            ) : (
+              <Text style={styles.statValue}>{stats.events}</Text>
+            )}
             <Text style={styles.statLabel}>Eventos</Text>
           </View>
           <View style={styles.verticalDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>4</Text>
+            {loadingStats ? (
+              <ActivityIndicator size="small" color="#00D9FF" />
+            ) : (
+              <Text style={styles.statValue}>{stats.tickets}</Text>
+            )}
             <Text style={styles.statLabel}>Tickets</Text>
           </View>
           <View style={styles.verticalDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>82</Text>
-            <Text style={styles.statLabel}>Seguidores</Text>
+            {loadingStats ? (
+              <ActivityIndicator size="small" color="#00D9FF" />
+            ) : (
+              <Text style={styles.statValue}>{stats.following}</Text>
+            )}
+            <Text style={styles.statLabel}>Siguiendo</Text>
           </View>
         </View>
 
@@ -226,19 +282,6 @@ const ProfileScreen = () => {
             <View style={{ flex: 1 }}>
               <Text style={styles.menuText}>Cambiar Contraseña</Text>
               <Text style={styles.menuSubtext}>Actualizar credenciales</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem} onPress={handleToggleRole}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(255, 157, 0, 0.1)' }]}>
-              <Ionicons name="swap-horizontal" size={22} color="#FFA500" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Cambiar Rol</Text>
-              <Text style={styles.menuSubtext}>
-                Estás como: {user?.activeRole === 'attendee' ? 'Asistente' : 'Organizador'}
-              </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
