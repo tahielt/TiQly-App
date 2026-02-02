@@ -57,10 +57,9 @@ const CreatePostScreen = () => {
     try {
       await createPost({
         content,
-        imageUrl: image || undefined,
+        // TODO: Upload image to Supabase Storage
+        imageUrl: undefined,
         userId: user.id,
-        userName: user.name || 'Usuario Anónimo',
-        userAvatar: user.avatar || undefined,
       });
 
       navigation.goBack();
