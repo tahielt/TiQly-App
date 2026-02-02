@@ -2,16 +2,16 @@ import { Platform } from 'react-native';
 import { format, parseISO, formatDistanceToNow, isDate } from 'date-fns';
 import { es as esLocale } from 'date-fns/locale';
 
-type DateFormat = 
-  | 'short' 
-  | 'medium' 
-  | 'long' 
-  | 'full' 
-  | 'date' 
-  | 'time' 
-  | 'datetime' 
-  | 'relative' 
-  | 'iso' 
+type DateFormat =
+  | 'short'
+  | 'medium'
+  | 'long'
+  | 'full'
+  | 'date'
+  | 'time'
+  | 'datetime'
+  | 'relative'
+  | 'iso'
   | string;
 
 /**
@@ -23,9 +23,9 @@ export const formatDate = (
   locale = esLocale
 ): string => {
   if (!date) return '';
-  
+
   let dateObj: Date;
-  
+
   if (typeof date === 'string') {
     // Handle ISO strings or timestamps
     dateObj = date.includes('T') || date.includes(' ') ? parseISO(date) : new Date(parseInt(date, 10));
@@ -35,12 +35,12 @@ export const formatDate = (
   } else {
     dateObj = date;
   }
-  
+
   // Check if the date is valid
   if (Number.isNaN(dateObj.getTime())) {
     return 'Fecha inválida';
   }
-  
+
   // Handle different format presets
   switch (formatStr) {
     case 'short':
@@ -49,14 +49,14 @@ export const formatDate = (
         month: 'short',
         day: 'numeric',
       });
-      
+
     case 'medium':
       return dateObj.toLocaleDateString('es-AR', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       });
-      
+
     case 'long':
       return dateObj.toLocaleDateString('es-AR', {
         weekday: 'long',
@@ -64,7 +64,7 @@ export const formatDate = (
         month: 'long',
         day: 'numeric',
       });
-      
+
     case 'full':
       return dateObj.toLocaleDateString('es-AR', {
         weekday: 'long',
@@ -75,31 +75,31 @@ export const formatDate = (
         minute: '2-digit',
         second: '2-digit',
       });
-      
+
     case 'date':
       return dateObj.toLocaleDateString('es-AR');
-      
+
     case 'time':
       return dateObj.toLocaleTimeString('es-AR', {
         hour: '2-digit',
         minute: '2-digit',
       });
-      
+
     case 'datetime':
       return `${dateObj.toLocaleDateString('es-AR')} ${dateObj.toLocaleTimeString('es-AR', {
         hour: '2-digit',
         minute: '2-digit',
       })}`;
-      
+
     case 'relative':
-      return formatDistanceToNow(dateObj, { 
-        addSuffix: true, 
-        locale: locale 
+      return formatDistanceToNow(dateObj, {
+        addSuffix: true,
+        locale: locale
       });
-      
+
     case 'iso':
       return dateObj.toISOString();
-      
+
     default:
       // Handle custom format strings
       return format(dateObj, formatStr, { locale });
@@ -116,26 +116,25 @@ export const formatCurrency = (
   options: Intl.NumberFormatOptions = {}
 ): string => {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   if (isNaN(numValue)) {
     return 'Precio no disponible';
   }
-  
+
   const defaultOptions: Intl.NumberFormatOptions = {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   };
-  
-  // Special case for Argentine Peso (ARS)
+
   if (currency === 'ARS') {
-    defaultOptions.currencyDisplay = '$';
+    defaultOptions.currencyDisplay = 'symbol';
   }
-  
-  return new Intl.NumberFormat(locale, { 
-    ...defaultOptions, 
-    ...options 
+
+  return new Intl.NumberFormat(locale, {
+    ...defaultOptions,
+    ...options
   }).format(numValue);
 };
 
@@ -148,19 +147,19 @@ export const formatNumber = (
   options: Intl.NumberFormatOptions = {}
 ): string => {
   const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+
   if (isNaN(numValue)) {
     return '0';
   }
-  
+
   const defaultOptions: Intl.NumberFormatOptions = {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   };
-  
-  return new Intl.NumberFormat(locale, { 
-    ...defaultOptions, 
-    ...options 
+
+  return new Intl.NumberFormat(locale, {
+    ...defaultOptions,
+    ...options
   }).format(numValue);
 };
 
@@ -169,13 +168,13 @@ export const formatNumber = (
  */
 export const formatFileSize = (bytes: number, decimals: number = 2): string => {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-  
+
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
@@ -185,7 +184,7 @@ export const formatFileSize = (bytes: number, decimals: number = 2): string => {
 export const formatPhoneNumber = (phoneNumber: string): string => {
   // Remove all non-digit characters
   const cleaned = `${phoneNumber}`.replace(/\D/g, '');
-  
+
   // Check if the number has a country code (assume Argentina +54)
   if (cleaned.length === 10) {
     // Format as AR number: (XXX) XXX-XXXX
@@ -199,10 +198,10 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
     const areaCode = cleaned.substring(cleaned.length - 10, cleaned.length - 7);
     const firstPart = cleaned.substring(cleaned.length - 7, cleaned.length - 4);
     const secondPart = cleaned.substring(cleaned.length - 4);
-    
+
     return `+${countryCode} (${areaCode}) ${firstPart}-${secondPart}`;
   }
-  
+
   // Return original if format doesn't match
   return phoneNumber;
 };
@@ -213,7 +212,7 @@ export const formatPhoneNumber = (phoneNumber: string): string => {
 export const formatCreditCardNumber = (cardNumber: string): string => {
   // Remove all non-digit characters
   const cleaned = `${cardNumber}`.replace(/\D/g, '');
-  
+
   // Add a space every 4 digits
   return cleaned.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
 };
@@ -223,32 +222,32 @@ export const formatCreditCardNumber = (cardNumber: string): string => {
  */
 export const maskSensitiveInfo = (str: string, type?: 'email' | 'phone' | 'credit-card' | 'ssn'): string => {
   if (!str) return '';
-  
+
   switch (type) {
     case 'email':
       const [username, domain] = str.split('@');
       if (!username || !domain) return str;
-      
+
       const maskedUsername = `${username.substring(0, 2)}${'*'.repeat(Math.max(0, username.length - 2))}`;
       const [domainName, tld] = domain.split('.');
       const maskedDomain = `${domainName?.substring(0, 2)}${'*'.repeat(Math.max(0, domainName?.length - 2 || 0))}`;
-      
+
       return `${maskedUsername}@${maskedDomain}.${tld}`;
-      
+
     case 'phone':
       const cleaned = str.replace(/\D/g, '');
       const lastFour = cleaned.slice(-4);
       return `••• ••• ${lastFour}`;
-      
+
     case 'credit-card':
       const cardCleaned = str.replace(/\D/g, '');
       const lastFourDigits = cardCleaned.slice(-4);
       return `•••• •••• •••• ${lastFourDigits}`;
-      
+
     case 'ssn':
       const ssnCleaned = str.replace(/\D/g, '');
       return `•••-••-${ssnCleaned.slice(-4)}`;
-      
+
     default:
       const length = str.length;
       if (length <= 2) return '*'.repeat(length);
@@ -269,7 +268,7 @@ export const truncateText = (text: string, maxLength: number, ellipsis: string =
  */
 export const toTitleCase = (str: string): string => {
   if (!str) return '';
-  
+
   return str.toLowerCase()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -322,7 +321,7 @@ export const toSnakeCase = (str: string): string => {
  */
 export const getInitials = (name: string, maxLength: number = 2): string => {
   if (!name) return '';
-  
+
   return name
     .split(/\s+/)
     .map(part => part.charAt(0).toUpperCase())
