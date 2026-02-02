@@ -45,7 +45,6 @@ const SocialFeedScreen = () => {
   const handleLike = async (postId: string) => {
     if (!user) return;
 
-    // Optimistic UI update
     const originalPosts = [...posts];
     const updatedPosts = posts.map(p => {
       if (p.id === postId) {
@@ -59,12 +58,10 @@ const SocialFeedScreen = () => {
     });
     setPosts(updatedPosts);
 
-    // Call the service
     try {
       await toggleLike(postId, user.id);
     } catch (error) {
       console.error('Error toggling like:', error);
-      // Revert UI on error
       setPosts(originalPosts);
       Alert.alert('Error', 'No se pudo procesar el "me gusta".');
     }

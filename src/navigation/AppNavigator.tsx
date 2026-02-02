@@ -38,6 +38,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
 import SwapScreen from '../screens/swap/SwapScreen';
+import TransferInboxScreen from '../screens/att/tickets/TransferInboxScreen';
 import OrganizationScreen from '../screens/org/OrganizationScreen';
 import RRPPDashboardScreen from '../screens/rrpp/RRPPDashboardScreen';
 import { organizationService } from '../services/organizationService';
@@ -111,6 +112,7 @@ const AttTicketsStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="AttTicketsHome" component={MyTicketsScreen} />
       <Stack.Screen name="AttTicketDetalle" component={TicketDetailScreen} />
+      <Stack.Screen name="TransferInbox" component={TransferInboxScreen} />
     </Stack.Navigator>
   );
 };

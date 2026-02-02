@@ -2,11 +2,9 @@
 // Only export hooks that actually exist in this directory
 
 export * from './useDebounce';
-export * from './useThrottle';
+
 export * from './usePrevious';
-export * from './useIsMounted';
-export * from './useWindowSize';
-export * from './useOrientation';
+
 export * from './useKeyboard';
 export * from './useAppState';
 export * from './useNetInfo';

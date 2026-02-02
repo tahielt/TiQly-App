@@ -64,6 +64,7 @@ export type OrgTicketsStackParamList = {
 export type AttTicketsStackParamList = {
   AttTicketsHome: undefined;
   AttTicketDetalle: { ticketId: string };
+  TransferInbox: undefined;
 };
 
 export type OrgTranspStackParamList = {

@@ -120,20 +120,22 @@ const TicketDetailScreen = () => {
     );
   }
 
-  const statusColors = {
+  const statusColors: Record<string, string> = {
     active: colors.success,
     used: colors.textSecondary,
     transferred: colors.warning,
     cancelled: colors.error,
-    expired: colors.textSecondary
+    expired: colors.textSecondary,
+    listed: colors.primary
   };
 
-  const statusLabels = {
+  const statusLabels: Record<string, string> = {
     active: '✓ Activo',
     used: '✓ Usado',
     transferred: '↔ Transferido',
     cancelled: '✗ Cancelado',
-    expired: '⏰ Expirado'
+    expired: '⏰ Expirado',
+    listed: '📢 En Venta'
   };
 
   return (

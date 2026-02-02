@@ -58,7 +58,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
     const shadowAnim = useRef(new Animated.Value(0.5)).current;
 
     useEffect(() => {
-        // Simple shadow pulse animation
         Animated.loop(
             Animated.sequence([
                 Animated.timing(shadowAnim, { toValue: 0.8, duration: 1000, useNativeDriver: false }),
@@ -85,7 +84,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                 shadowOpacity: shadowAnim,
                 shadowRadius: 20,
             }]}>
-                {/* Header with Switch */}
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Tu Experiencia</Text>
                     <TouchableOpacity onPress={onClose}>
@@ -93,7 +91,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     </TouchableOpacity>
                 </View>
 
-                {/* Tiers Switch */}
                 <View style={styles.switchContainer}>
                     {TIERS.map((tier, index) => (
                         <TouchableOpacity
@@ -114,7 +111,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     ))}
                 </View>
 
-                {/* Main Content */}
                 <View style={styles.content}>
                     <View style={styles.souvenirContainer}>
                         <LinearGradient
@@ -131,7 +127,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                         </Text>
                     </View>
 
-                    {/* Perks List */}
                     <View style={styles.perksList}>
                         {selectedTier.perks.map((perk, i) => (
                             <View key={i} style={styles.perkItem}>
@@ -142,7 +137,6 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     </View>
                 </View>
 
-                {/* Purchase Button */}
                 <TouchableOpacity
                     style={[styles.buyButton, { backgroundColor: selectedTier.color }]}
                     onPress={() => onSelect(selectedTier)}

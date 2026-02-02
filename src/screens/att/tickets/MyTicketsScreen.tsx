@@ -174,9 +174,17 @@ const MyTicketsScreen = () => {
             <StatusBar barStyle="light-content" />
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Mis Tickets</Text>
-                <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-                    <Ionicons name="refresh" size={24} color="#fff" />
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity
+                        style={styles.inboxButton}
+                        onPress={() => navigation.navigate('TransferInbox')}
+                    >
+                        <Ionicons name="mail-outline" size={22} color="#00D9FF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+                        <Ionicons name="refresh" size={24} color="#fff" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Filter Tabs */}
@@ -247,6 +255,18 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         color: '#fff',
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    inboxButton: {
+        padding: 8,
+        backgroundColor: 'rgba(0, 217, 255, 0.1)',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 217, 255, 0.3)',
     },
     refreshButton: {
         padding: 8,

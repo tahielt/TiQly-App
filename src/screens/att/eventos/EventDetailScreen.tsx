@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
 import { purchaseTicket } from '../../../services/ticketService';
+import { notifyTicketPurchase } from '../../../services/notificationService';
 import { supabase } from '../../../lib/supabase';
 import { Event } from '../../../types/event';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -111,6 +112,8 @@ const EventDetailScreen = () => {
                     location: event.location?.address || 'Sin dirección'
                 }
             );
+
+            await notifyTicketPurchase(event.title, tier.name, new Date(event.startDate));
 
             setPurchasing(false);
             Alert.alert(

@@ -1,40 +1,42 @@
 import { DefaultTheme } from '@react-navigation/native';
 
 export const colors = {
-  // Brand colors
   primary: '#6200EE',
   primaryDark: '#3700B3',
   primaryLight: '#BB86FC',
   secondary: '#03DAC6',
   secondaryDark: '#018786',
-  
-  // Status colors
+
+  neonCyan: '#00D9FF',
+  neonCyanGlow: 'rgba(0, 217, 255, 0.6)',
+  neonCyanSubtle: 'rgba(0, 217, 255, 0.1)',
+  neonGreen: '#00FF9D',
+  neonGreenGlow: 'rgba(0, 255, 157, 0.6)',
+  hotRed: '#FF4444',
+
   success: '#4CAF50',
   warning: '#FFC107',
   error: '#B00020',
   info: '#2196F3',
-  
-  // Grayscale
   white: '#FFFFFF',
   lightGray: '#F5F5F5',
   mediumGray: '#9E9E9E',
   darkGray: '#424242',
   black: '#000000',
-  
-  // Backgrounds
+
+  darkBg: '#000000',
+  darkSurface: '#111111',
+  darkCard: '#1a1a1a',
+  darkBorder: '#222222',
   background: '#FFFFFF',
   surface: '#F5F5F5',
-  
-  // Text
+
   text: '#212121',
   textSecondary: '#757575',
   textOnPrimary: '#FFFFFF',
   textOnSecondary: '#000000',
-  
-  // Borders
   border: '#E0E0E0',
-  
-  // Social
+
   facebook: '#3B5998',
   google: '#DB4437',
   apple: '#000000',
