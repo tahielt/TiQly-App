@@ -1,6 +1,6 @@
 // Ticket types for Tiqly App
 
-export type TicketStatus = 'active' | 'used' | 'transferred' | 'cancelled' | 'expired';
+export type TicketStatus = 'active' | 'used' | 'transferred' | 'cancelled' | 'expired' | 'listed';
 export type TransferStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
 
 export interface Ticket {

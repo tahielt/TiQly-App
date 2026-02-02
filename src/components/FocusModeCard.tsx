@@ -18,7 +18,6 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
     const scale = useRef(new Animated.Value(0.95)).current;
 
     useEffect(() => {
-        // Breathing glow animation
         Animated.loop(
             Animated.sequence([
                 Animated.timing(glowOpacity, { toValue: 1, duration: 1500, useNativeDriver: false }),
@@ -26,11 +25,9 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
             ])
         ).start();
 
-        // Scale in animation
         Animated.timing(scale, { toValue: 1, duration: 400, useNativeDriver: true }).start();
     }, []);
 
-    // Use event image instead of video for simplicity (avoids expo-av)
     const imageSource = event.imageUrl
         ? { uri: event.imageUrl }
         : { uri: 'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=800' };
@@ -40,7 +37,6 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
             shadowOpacity: glowOpacity,
             transform: [{ scale }],
         }]}>
-            {/* Outer Glow / Border */}
             <LinearGradient
                 colors={['#00D9FF', 'rgba(0, 217, 255, 0.2)']}
                 start={{ x: 0, y: 0 }}
@@ -52,20 +48,16 @@ const FocusModeCard: React.FC<FocusModeCardProps> = ({ event, onPress, onClose }
                     activeOpacity={0.9}
                     onPress={onPress}
                 >
-                    {/* Image Background instead of Video */}
                     <Image
                         source={imageSource}
                         style={StyleSheet.absoluteFill}
                         resizeMode="cover"
                     />
 
-                    {/* Overlay Gradient for readability */}
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.9)']}
                         style={StyleSheet.absoluteFill}
                     />
-
-                    {/* Content */}
                     <View style={styles.content}>
                         <View style={styles.topRow}>
                             <View style={styles.liveBadge}>

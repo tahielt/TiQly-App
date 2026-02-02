@@ -14,7 +14,6 @@ type PostDetailRouteProp = {
   path?: string;
 };
 
-// Navigation prop type is not needed as we're not using navigation prop directly
 const PostDetailScreen = () => {
   const route = useRoute<PostDetailRouteProp>();
   const { postId } = route.params;
@@ -28,7 +27,6 @@ const PostDetailScreen = () => {
   const loadPost = async () => {
     try {
       const postData = await getPostById(postId);
-      // Ensure all required fields are present
       const safePost: Post = {
         ...postData,
         userId: postData.userId || 'unknown',
@@ -57,8 +55,8 @@ const PostDetailScreen = () => {
     
     try {
       const newComment = await addComment(postId, {
-        userId: 'current-user-id', // This should come from your auth context
-        userName: 'Usuario Actual', // This should come from your auth context
+        userId: 'current-user-id',
+        userName: 'Usuario Actual',
         content: comment,
       });
       
@@ -81,7 +79,7 @@ const PostDetailScreen = () => {
     setLiking(true);
     
     try {
-      const userId = 'current-user-id'; // This should come from your auth context
+      const userId = 'current-user-id';
       const currentLikes = post.likes || [];
       const isLiked = currentLikes.includes(userId);
       

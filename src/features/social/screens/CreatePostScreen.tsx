@@ -8,7 +8,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { SocialStackParamList } from '../../../types/navigation';
 import { createPost } from '../socialService';
 import { colors, spacing, typography } from '../../../theme';
-// Importamos el tipo de usuario de Firebase con un alias para evitar conflictos
 import { User as FirebaseUser } from 'firebase/auth'; 
 
 type CreatePostNavigationProp = NativeStackNavigationProp<SocialStackParamList, 'CreatePost'>;
@@ -19,9 +18,6 @@ const CreatePostScreen = () => {
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<CreatePostNavigationProp>();
   
-  // SOLUCIÓN DE TIPADO: Especificamos que el usuario extraído del store
-  // (si existe) debe ser tratado como el tipo FirebaseUser para que las 
-  // propiedades como 'uid' y 'displayName' sean reconocidas.
   const { user } = useSelector((state: RootState) => state.auth);
   const firebaseUser = user as FirebaseUser | null;
 
@@ -51,7 +47,6 @@ const CreatePostScreen = () => {
       return;
     }
 
-    // Usamos el usuario tipado correctamente (firebaseUser) para el chequeo
     if (!firebaseUser) {
       Alert.alert('Error', 'Debes iniciar sesión para publicar');
       return;
@@ -63,9 +58,9 @@ const CreatePostScreen = () => {
       await createPost({
         content,
         imageUri: image || undefined,
-        userId: firebaseUser.uid, // Acceso seguro a .uid
-        userName: firebaseUser.displayName || 'Usuario Anónimo', // Acceso seguro a .displayName
-        userAvatar: firebaseUser.photoURL || undefined, // Acceso seguro a .photoURL
+        userId: firebaseUser.uid,
+        userName: firebaseUser.displayName || 'Usuario Anónimo',
+        userAvatar: firebaseUser.photoURL || undefined,
       });
       
       navigation.goBack();

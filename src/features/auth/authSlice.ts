@@ -4,15 +4,13 @@ import { UserRole } from '../../types/navigation';
 import StorageService from '../../services/storage';
 import * as authService from '../../services/authService';
 
-// Initial state - NOT authenticated by default
 const initialState: AuthState = {
   user: null,
-  isLoading: true, // Start loading to check session
+  isLoading: true,
   error: null,
   isAuthenticated: false,
 };
 
-// 🔐 REGISTER - Real Supabase
 export const registerUser = createAsyncThunk(
   'auth/register',
   async ({ email, password, name }: { email: string; password: string; name: string }, { rejectWithValue }) => {
@@ -25,7 +23,6 @@ export const registerUser = createAsyncThunk(
   }
 );
 
-// 🔐 LOGIN - Real Supabase
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
@@ -38,19 +35,16 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// 🔄 CHECK AUTH STATUS - On app startup
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      // First check Supabase session
       const user = await authService.getCurrentUser();
       if (user) {
         await StorageService.saveAuthData(user);
         return user;
       }
 
-      // Fallback to local storage
       const storedUser = await StorageService.getAuthData();
       return storedUser;
     } catch (error) {
@@ -59,7 +53,6 @@ export const checkAuthStatus = createAsyncThunk(
   }
 );
 
-// 🚪 LOGOUT - Real Supabase
 export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
@@ -73,7 +66,6 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
-// 📧 RESET PASSWORD
 export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async (email: string, { rejectWithValue }) => {
@@ -113,7 +105,6 @@ const authSlice = createSlice({
     }
   },
   extraReducers: (builder) => {
-    // Register
     builder.addCase(registerUser.pending, (state) => {
       state.isLoading = true;
       state.error = null;
@@ -128,7 +119,6 @@ const authSlice = createSlice({
       state.error = action.payload as string;
     });
 
-    // Login
     builder.addCase(loginUser.pending, (state) => {
       state.isLoading = true;
       state.error = null;
@@ -143,7 +133,6 @@ const authSlice = createSlice({
       state.error = action.payload as string;
     });
 
-    // Check auth status
     builder.addCase(checkAuthStatus.pending, (state) => {
       state.isLoading = true;
     });
@@ -161,14 +150,12 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
     });
 
-    // Logout
     builder.addCase(logoutUser.fulfilled, (state) => {
       state.user = null;
       state.isAuthenticated = false;
       state.error = null;
     });
 
-    // Reset Password
     builder.addCase(resetPassword.pending, (state) => {
       state.isLoading = true;
       state.error = null;

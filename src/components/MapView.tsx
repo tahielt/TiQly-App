@@ -24,52 +24,27 @@ interface MapViewProps {
   routeTo?: { latitude: number; longitude: number } | null;
 }
 
-// 🔥 Futuristic Neon Map Style - Cyberpunk aesthetic
 const customMapStyle = [
-  // Base oscura profunda
   { "elementType": "geometry", "stylers": [{ "color": "#0A1418" }] },
-
-  // Sin íconos de POI para look limpio
   { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
-
-  // Labels cyan subtle
   { "elementType": "labels.text.fill", "stylers": [{ "color": "#00A5B8" }] },
   { "elementType": "labels.text.stroke", "stylers": [{ "color": "#000000" }, { "weight": 2 }] },
-
-  // Administrative borders cyan
   { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#00505A" }] },
   { "featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{ "color": "#00D9FF" }] },
-
-  // Landscape teal oscuro
   { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#0D2A33" }] },
-
-  // POIs ocultos para look minimalista
   { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
-
-  // Parques teal oscuro
   { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#0A2420" }, { "visibility": "on" }] },
-
-  // 🔥 CALLES NEÓN - El secreto del look futurista
   { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#0A3D4A" }] },
   { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#00707D" }, { "weight": 0.5 }] },
   { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#00808F" }] },
-
-  // Calles locales
   { "featureType": "road.local", "elementType": "geometry.fill", "stylers": [{ "color": "#0A3540" }] },
   { "featureType": "road.local", "elementType": "geometry.stroke", "stylers": [{ "color": "#005A65" }] },
-
-  // Highways más brillantes con glow cyan
   { "featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{ "color": "#0D4A52" }] },
   { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#00D9FF" }, { "weight": 1 }] },
-
-  // Arterial roads
   { "featureType": "road.arterial", "elementType": "geometry.fill", "stylers": [{ "color": "#0A4048" }] },
   { "featureType": "road.arterial", "elementType": "geometry.stroke", "stylers": [{ "color": "#008A9A" }] },
-
-  // Transit oculto
   { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
-
-  // Agua negra profunda
+  { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
   { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000508" }] },
   { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#004555" }] }
 ];
@@ -114,7 +89,6 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
     })();
   }, []);
 
-  // Fit map to show route
   useEffect(() => {
     if (routeTo && userLocation && mapRef.current) {
       mapRef.current.fitToCoordinates([userLocation, routeTo], {
@@ -155,7 +129,6 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
         customMapStyle={customMapStyle}
         onPress={handlePress}
       >
-        {/* Event Markers */}
         {events.map((event) => (
           <Marker
             key={event.id}
@@ -172,8 +145,6 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
             </View>
           </Marker>
         ))}
-
-        {/* Editable Pin */}
         {editable && initialLocation && (
           <Marker
             coordinate={{ latitude: initialLocation.latitude, longitude: initialLocation.longitude }}
@@ -188,24 +159,19 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
             </View>
           </Marker>
         )}
-
-        {/* Route Line - Improved visual */}
         {routeTo && userLocation && (
           <>
-            {/* Glow effect */}
             <Polyline
               coordinates={[userLocation, routeTo]}
               strokeColor="rgba(0, 217, 255, 0.25)"
               strokeWidth={12}
             />
-            {/* Main line */}
             <Polyline
               coordinates={[userLocation, routeTo]}
               strokeColor="#00D9FF"
               strokeWidth={4}
               lineCap="round"
             />
-            {/* Destination circle */}
             <Circle
               center={routeTo}
               radius={50}

@@ -311,6 +311,303 @@ export const validateTicket = async (
 };
 
 
+// ==========================================
+// MARKETPLACE / SWAP FUNCTIONS
+// ==========================================
+
+export interface TicketListing {
+  id: string;
+  ticketId: string;
+  sellerId: string;
+  sellerName: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: Date;
+  eventImage: string;
+  ticketTier: string;
+  originalPrice: number;
+  askingPrice: number;
+  status: 'active' | 'sold' | 'cancelled' | 'expired';
+  createdAt: Date;
+}
+
+// Platform fee for resales (10%)
+export const RESALE_FEE_PERCENTAGE = 0.10;
+// Max markup allowed (150% of original)
+export const MAX_MARKUP_PERCENTAGE = 1.5;
+
+
+/**
+ * List a ticket for sale in the marketplace
+ */
+export const listTicketForSale = async (
+  ticketId: string,
+  askingPrice: number,
+  sellerId: string
+): Promise<TicketListing> => {
+  // 1. Get ticket and verify ownership
+  const { data: ticket, error: ticketError } = await supabase
+    .from('tickets')
+    .select('*, event:events!event_id(title, start_date, cover_image)')
+    .eq('id', ticketId)
+    .eq('user_id', sellerId)
+    .eq('status', 'active')
+    .single();
+
+  if (ticketError || !ticket) {
+    throw new Error('Ticket no encontrado o no te pertenece');
+  }
+
+  // 1.5 Check if ticket is already listed
+  const { data: existingListing } = await supabase
+    .from('ticket_listings')
+    .select('id, status')
+    .eq('ticket_id', ticketId)
+    .in('status', ['active'])
+    .maybeSingle();
+
+  if (existingListing) {
+    throw new Error('Este ticket ya está publicado en el marketplace');
+  }
+
+  // 2. Check max price (anti-speculation)
+  const maxAllowedPrice = ticket.price_paid * MAX_MARKUP_PERCENTAGE;
+  if (askingPrice > maxAllowedPrice) {
+    throw new Error(`Precio máximo permitido: $${maxAllowedPrice.toLocaleString()}`);
+  }
+
+  // 3. Calculate expiration (2hrs before event)
+  const eventDate = new Date(ticket.event?.start_date);
+  const expiresAt = new Date(eventDate.getTime() - 2 * 60 * 60 * 1000);
+
+  // 4. Create listing
+  const { data: listing, error: listingError } = await supabase
+    .from('ticket_listings')
+    .insert({
+      ticket_id: ticketId,
+      seller_id: sellerId,
+      event_id: ticket.event_id,
+      original_price: ticket.price_paid,
+      asking_price: askingPrice,
+      status: 'active',
+      expires_at: expiresAt.toISOString(),
+    })
+    .select()
+    .single();
+
+  if (listingError) {
+    console.error('Error creating listing:', listingError);
+    throw new Error('Error al publicar el ticket');
+  }
+
+  // 5. Mark ticket as listed
+  await supabase
+    .from('tickets')
+    .update({ status: 'listed' })
+    .eq('id', ticketId);
+
+  return {
+    id: listing.id,
+    ticketId: listing.ticket_id,
+    sellerId: listing.seller_id,
+    sellerName: 'Vos',
+    eventId: listing.event_id,
+    eventTitle: ticket.event?.title || 'Evento',
+    eventDate: new Date(ticket.event?.start_date),
+    eventImage: ticket.event?.cover_image || '',
+    ticketTier: 'General',
+    originalPrice: listing.original_price,
+    askingPrice: listing.asking_price,
+    status: listing.status,
+    createdAt: new Date(listing.created_at),
+  };
+};
+
+
+/**
+ * Get all active listings for the marketplace
+ */
+export const getActiveListings = async (eventId?: string): Promise<TicketListing[]> => {
+  let query = supabase
+    .from('ticket_listings')
+    .select(`
+      *,
+      ticket:tickets!ticket_id(price_paid, ticket_type_id),
+      event:events!event_id(title, start_date, cover_image),
+      seller:profiles!seller_id(name)
+    `)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  if (eventId) {
+    query = query.eq('event_id', eventId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching listings:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    ticketId: row.ticket_id,
+    sellerId: row.seller_id,
+    sellerName: row.seller?.name || 'Vendedor',
+    eventId: row.event_id,
+    eventTitle: row.event?.title || 'Evento',
+    eventDate: new Date(row.event?.start_date),
+    eventImage: row.event?.cover_image || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200',
+    ticketTier: 'General',
+    originalPrice: row.original_price,
+    askingPrice: row.asking_price,
+    status: row.status,
+    createdAt: new Date(row.created_at),
+  }));
+};
+
+
+/**
+ * Purchase a listed ticket
+ */
+export const purchaseListedTicket = async (
+  listingId: string,
+  buyerId: string,
+  buyerName: string,
+  buyerEmail: string
+): Promise<Ticket> => {
+  // 1. Get listing and verify it's active
+  const { data: listing, error: listingError } = await supabase
+    .from('ticket_listings')
+    .select('*, ticket:tickets!ticket_id(*), event:events!event_id(title, start_date, address)')
+    .eq('id', listingId)
+    .eq('status', 'active')
+    .single();
+
+  if (listingError || !listing) {
+    throw new Error('Listing no disponible');
+  }
+
+  // 2. Generate new QR for buyer
+  const newQrCode = await generateQRCode(listing.ticket_id, buyerId, listing.event_id);
+
+  // 3. Transfer ticket to buyer
+  const { error: transferError } = await supabase
+    .from('tickets')
+    .update({
+      user_id: buyerId,
+      qr_code: newQrCode,
+      status: 'active', // Back to active after purchase
+      transferred_at: new Date().toISOString(),
+    })
+    .eq('id', listing.ticket_id);
+
+  if (transferError) {
+    throw new Error('Error al transferir el ticket');
+  }
+
+  // 4. Mark listing as sold
+  await supabase
+    .from('ticket_listings')
+    .update({
+      status: 'sold',
+      buyer_id: buyerId,
+      sold_at: new Date().toISOString(),
+    })
+    .eq('id', listingId);
+
+  // 5. Return the purchased ticket
+  return {
+    id: listing.ticket_id,
+    eventId: listing.event_id,
+    eventTitle: listing.event?.title || 'Evento',
+    eventDate: new Date(listing.event?.start_date),
+    eventLocation: listing.event?.address || '',
+    userId: buyerId,
+    userName: buyerName,
+    userEmail: buyerEmail,
+    ticketTypeId: listing.ticket?.ticket_type_id || '',
+    ticketTypeName: 'General',
+    price: listing.asking_price,
+    qrCode: newQrCode,
+    status: 'active',
+    purchaseDate: new Date(),
+    transferHistory: [],
+    originalOwnerId: listing.seller_id,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+};
+
+
+/**
+ * Cancel a listing (seller only)
+ */
+export const cancelListing = async (listingId: string, sellerId: string): Promise<void> => {
+  // 1. Verify ownership
+  const { data: listing, error } = await supabase
+    .from('ticket_listings')
+    .select('ticket_id')
+    .eq('id', listingId)
+    .eq('seller_id', sellerId)
+    .eq('status', 'active')
+    .single();
+
+  if (error || !listing) {
+    throw new Error('Listing no encontrado o no te pertenece');
+  }
+
+  // 2. Cancel listing
+  await supabase
+    .from('ticket_listings')
+    .update({ status: 'cancelled' })
+    .eq('id', listingId);
+
+  // 3. Restore ticket status
+  await supabase
+    .from('tickets')
+    .update({ status: 'active' })
+    .eq('id', listing.ticket_id);
+};
+
+
+/**
+ * Get user's own listings
+ */
+export const getUserListings = async (userId: string): Promise<TicketListing[]> => {
+  const { data, error } = await supabase
+    .from('ticket_listings')
+    .select(`
+      *,
+      event:events!event_id(title, start_date, cover_image)
+    `)
+    .eq('seller_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching user listings:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    ticketId: row.ticket_id,
+    sellerId: row.seller_id,
+    sellerName: 'Vos',
+    eventId: row.event_id,
+    eventTitle: row.event?.title || 'Evento',
+    eventDate: new Date(row.event?.start_date),
+    eventImage: row.event?.cover_image || '',
+    ticketTier: 'General',
+    originalPrice: row.original_price,
+    askingPrice: row.asking_price,
+    status: row.status,
+    createdAt: new Date(row.created_at),
+  }));
+};
+
+
 export default {
   purchaseTicket,
   getUserTickets,
@@ -321,5 +618,13 @@ export default {
   getPendingTransfers,
   validateTicket,
   getUserTicketHistory,
-  PLATFORM_FEE_PERCENTAGE
+  // Marketplace
+  listTicketForSale,
+  getActiveListings,
+  purchaseListedTicket,
+  cancelListing,
+  getUserListings,
+  PLATFORM_FEE_PERCENTAGE,
+  RESALE_FEE_PERCENTAGE,
+  MAX_MARKUP_PERCENTAGE,
 };
