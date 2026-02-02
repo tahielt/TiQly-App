@@ -5,8 +5,8 @@ import * as Crypto from 'expo-crypto';
 // Re-export types for convenience
 export type { TicketTransfer } from '../types/ticket';
 
-// Platform fee percentage (15%)
-export const PLATFORM_FEE_PERCENTAGE = 0.15;
+// Platform fee percentage (10% as configured in platform_config)
+export const PLATFORM_FEE_PERCENTAGE = 0.10;
 
 // Generate unique QR code for ticket
 const generateQRCode = async (ticketId: string, userId: string, eventId: string): Promise<string> => {

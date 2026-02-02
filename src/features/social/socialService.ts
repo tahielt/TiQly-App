@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Comment {
   id: string;
+  postId: string;
   userId: string;
   userName: string;
   userAvatar?: string;
@@ -59,6 +60,7 @@ const getMockPosts = (): Post[] => [
     comments: [
       {
         id: 'comm_1',
+        postId: 'post_1',
         userId: 'user_2',
         userName: 'Juan Pérez',
         content: '¡Estuvo genial! 🙌',
@@ -94,13 +96,10 @@ export const getPosts = async (): Promise<Post[]> => {
   return await getStoredPosts();
 };
 
-export const getPostById = async (postId: string): Promise<Post> => {
+export const getPostById = async (postId: string): Promise<Post | null> => {
   const posts = await getStoredPosts();
   const post = posts.find(p => p.id === postId);
-  if (!post) {
-    throw new Error('Post not found');
-  }
-  return post;
+  return post || null;
 };
 
 export const createPost = async (postData: Partial<Post>): Promise<Post> => {
@@ -155,6 +154,7 @@ export const addComment = async (postId: string, commentData: Partial<Comment>):
 
   const newComment: Comment = {
     id: `comm_${Date.now()}`,
+    postId: postId,
     userId: commentData.userId || 'current_user',
     userName: commentData.userName || 'Usuario',
     userAvatar: commentData.userAvatar,
@@ -174,6 +174,12 @@ export const deletePost = async (postId: string): Promise<void> => {
   await savePosts(filtered);
 };
 
+export const getPostComments = async (postId: string): Promise<Comment[]> => {
+  const posts = await getStoredPosts();
+  const post = posts.find(p => p.id === postId);
+  return post ? post.comments : [];
+};
+
 export default {
   getPosts,
   getPostById,
@@ -181,4 +187,5 @@ export default {
   toggleLike,
   addComment,
   deletePost,
+  getPostComments
 };

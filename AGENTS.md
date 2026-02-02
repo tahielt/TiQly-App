@@ -28,13 +28,27 @@ TiQly-App is an Expo-based React Native mobile application focused on event tick
 - **Lint**: `npx eslint . --ext .js,.jsx,.ts,.tsx` (if configured)
 - **Type Check**: `npx tsc --noEmit
 
-## Code Style & Patterns
-- **Components**: Functional components with Hooks.
-- **Styling**: Use `StyleSheet.create` at the bottom of the file. Avoid inline styles for complex objects.
-- **Animations**: Prefer `react-native-reanimated` for performant 60fps animations.
-- **Haptics**: Use `expo-haptics` generously for interactive elements to create a premium feel.
-- **Imports**: Use absolute paths or consistent relative paths. Group imports: React/RN -> 3rd Party -> Local.
+## 💎 TiQly Design Patterns (Dopamine & Sci-Fi)
+- **Glassmorphism Architecture**: Use `BlurView` from `expo-blur` as the primary container layer. Backgrounds must never be flat; use deep gradients or `expo-video` loops with a dark overlay and heavy blur.
+- **Haptic Engine Protocol**: Systemic implementation of `expo-haptics` is mandatory:
+    - **Success/Purchase**: `ImpactFeedbackStyle.Heavy`.
+    - **Navigation/Selection**: `SelectionChanged`.
+    - **Errors**: `NotificationFeedbackType.Error`.
+- **Motion & 60fps**: Use `react-native-reanimated` for all transitions. Avoid sudden layout jumps. Implement "Slot Machine" tickers for currency and ticket counts to trigger user dopamine.
+- **Visual Identity**: Strictly follow the Sci-Fi "Command Center" aesthetic: Neon Cyan (#00FFFF) accents, translucent glass cards, and pulsing glow animations.
 
+## 💰 Financial & Data Integrity
+- **Fee Management**: Every transaction must clearly separate `base_price`, `service_fee` (TiQly cut), and `total_price`. 
+- **Organizer Logic**: The Dashboard must prioritize `Net Profit` visibility. Calculation of fees must be handled via Supabase Edge Functions or validated strictly against the DB Schema.
+- **Zero-Mock Policy**: New features in `feat/` branches must implement real Supabase service calls. Static mocks are only allowed for initial UI prototyping and must be replaced before PR.
+
+## 🛠️ Git & Branching Strategy
+- **Naming Convention**: 
+    - `feat/`: New features or modules.
+    - `fix/`: Bug fixes.
+    - `ui/`: Purely aesthetic or animation adjustments.
+    - `refactor/`: Code improvements without functional changes.
+- **Safety**: Always `git fetch origin` before creating a new branch from a shared state (e.g., `fix/migracion-expo-av-y-reanimated`).
 ## Testing Instructions
 - **Manual Verification**: Since automated tests are not yet fully set up, verify changes on a simulator/emulator.
 - **Key Flows**:

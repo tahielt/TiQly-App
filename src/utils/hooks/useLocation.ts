@@ -1,121 +1,159 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import * as Location from 'expo-location';
+/**
+ * useLocation Hook - Using expo-location
+ * Provides geolocation functionality with Expo APIs
+ */
 
-type LocationData = {
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as ExpoLocation from 'expo-location';
+
+type Location = {
   latitude: number;
   longitude: number;
   accuracy: number | null;
   altitude: number | null;
+  altitudeAccuracy: number | null;
   heading: number | null;
   speed: number | null;
   timestamp: number;
 };
 
 type LocationError = {
-  code: string;
+  code: number;
   message: string;
 };
 
 type UseLocationOptions = {
   enableHighAccuracy?: boolean;
+  timeout?: number;
   distanceFilter?: number;
 };
 
 const defaultOptions: UseLocationOptions = {
   enableHighAccuracy: true,
+  timeout: 15000,
   distanceFilter: 10,
 };
 
+/**
+ * Custom hook for geolocation using expo-location
+ */
 function useLocation(options: UseLocationOptions = {}) {
-  const [location, setLocation] = useState<LocationData | null>(null);
+  const [location, setLocation] = useState<Location | null>(null);
   const [error, setError] = useState<LocationError | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const subscription = useRef<Location.LocationSubscription | null>(null);
+  const watchSubscription = useRef<ExpoLocation.LocationSubscription | null>(null);
 
-  const mergedOptions = { ...defaultOptions, ...options };
+  const mergedOptions = {
+    ...defaultOptions,
+    ...options,
+  };
 
   const hasLocationPermission = useCallback(async (): Promise<boolean> => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      return status === 'granted';
-    } catch (e) {
-      setError({ code: 'PERMISSION_ERROR', message: 'Failed to request permission' });
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError({
+          code: 1,
+          message: 'Location permission denied by user',
+        });
+        return false;
+      }
+      return true;
+    } catch (err) {
+      setError({
+        code: 2,
+        message: 'Failed to request location permission',
+      });
       return false;
     }
   }, []);
 
-  const getCurrentPosition = useCallback(async (): Promise<LocationData | null> => {
+  const getCurrentPosition = useCallback(async (): Promise<Location | null> => {
     try {
       setIsLoading(true);
       setError(null);
 
       const hasPermission = await hasLocationPermission();
       if (!hasPermission) {
-        setError({ code: 'PERMISSION_DENIED', message: 'Location permission denied' });
         setIsLoading(false);
         return null;
       }
 
-      const position = await Location.getCurrentPositionAsync({
+      const position = await ExpoLocation.getCurrentPositionAsync({
         accuracy: mergedOptions.enableHighAccuracy
-          ? Location.Accuracy.High
-          : Location.Accuracy.Balanced,
+          ? ExpoLocation.Accuracy.High
+          : ExpoLocation.Accuracy.Balanced,
       });
 
-      const locationData: LocationData = {
+      const formattedLocation: Location = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracy: position.coords.accuracy ?? null,
         altitude: position.coords.altitude ?? null,
+        altitudeAccuracy: position.coords.altitudeAccuracy ?? null,
         heading: position.coords.heading ?? null,
         speed: position.coords.speed ?? null,
         timestamp: position.timestamp,
       };
 
-      setLocation(locationData);
+      setLocation(formattedLocation);
       setIsLoading(false);
-      return locationData;
-    } catch (e) {
-      const err = e as Error;
-      setError({ code: 'LOCATION_ERROR', message: err.message });
+      return formattedLocation;
+    } catch (err: any) {
+      const locationError: LocationError = {
+        code: err.code || 0,
+        message: err.message || 'Failed to get location',
+      };
+      setError(locationError);
       setIsLoading(false);
       return null;
     }
   }, [hasLocationPermission, mergedOptions.enableHighAccuracy]);
 
   const startWatching = useCallback(async (): Promise<void> => {
-    if (subscription.current) return;
+    if (watchSubscription.current) {
+      return;
+    }
 
     const hasPermission = await hasLocationPermission();
-    if (!hasPermission) return;
+    if (!hasPermission) {
+      return;
+    }
 
-    subscription.current = await Location.watchPositionAsync(
+    watchSubscription.current = await ExpoLocation.watchPositionAsync(
       {
         accuracy: mergedOptions.enableHighAccuracy
-          ? Location.Accuracy.High
-          : Location.Accuracy.Balanced,
+          ? ExpoLocation.Accuracy.High
+          : ExpoLocation.Accuracy.Balanced,
         distanceInterval: mergedOptions.distanceFilter,
+        timeInterval: 10000, // 10 seconds
       },
       (position) => {
-        setLocation({
+        const formattedLocation: Location = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
           accuracy: position.coords.accuracy ?? null,
           altitude: position.coords.altitude ?? null,
+          altitudeAccuracy: position.coords.altitudeAccuracy ?? null,
           heading: position.coords.heading ?? null,
           speed: position.coords.speed ?? null,
           timestamp: position.timestamp,
-        });
+        };
+        setLocation(formattedLocation);
       }
     );
   }, [hasLocationPermission, mergedOptions]);
 
   const stopWatching = useCallback((): void => {
-    if (subscription.current) {
-      subscription.current.remove();
-      subscription.current = null;
+    if (watchSubscription.current) {
+      watchSubscription.current.remove();
+      watchSubscription.current = null;
     }
   }, []);
+
+  const clearWatch = useCallback((): void => {
+    stopWatching();
+  }, [stopWatching]);
 
   useEffect(() => {
     return () => {
@@ -130,8 +168,10 @@ function useLocation(options: UseLocationOptions = {}) {
     getCurrentPosition,
     startWatching,
     stopWatching,
+    clearWatch,
     hasLocationPermission,
   };
 }
 
 export default useLocation;
+export { useLocation };

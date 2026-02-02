@@ -26,25 +26,34 @@ interface MapViewProps {
 
 const customMapStyle = [
   { "elementType": "geometry", "stylers": [{ "color": "#0A1418" }] },
+
   { "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] },
+
   { "elementType": "labels.text.fill", "stylers": [{ "color": "#00A5B8" }] },
   { "elementType": "labels.text.stroke", "stylers": [{ "color": "#000000" }, { "weight": 2 }] },
+
   { "featureType": "administrative", "elementType": "geometry", "stylers": [{ "color": "#00505A" }] },
   { "featureType": "administrative.country", "elementType": "labels.text.fill", "stylers": [{ "color": "#00D9FF" }] },
+
   { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#0D2A33" }] },
   { "featureType": "poi", "stylers": [{ "visibility": "off" }] },
+
   { "featureType": "poi.park", "elementType": "geometry", "stylers": [{ "color": "#0A2420" }, { "visibility": "on" }] },
+
   { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#0A3D4A" }] },
   { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#00707D" }, { "weight": 0.5 }] },
   { "featureType": "road", "elementType": "labels.text.fill", "stylers": [{ "color": "#00808F" }] },
   { "featureType": "road.local", "elementType": "geometry.fill", "stylers": [{ "color": "#0A3540" }] },
   { "featureType": "road.local", "elementType": "geometry.stroke", "stylers": [{ "color": "#005A65" }] },
+
   { "featureType": "road.highway", "elementType": "geometry.fill", "stylers": [{ "color": "#0D4A52" }] },
   { "featureType": "road.highway", "elementType": "geometry.stroke", "stylers": [{ "color": "#00D9FF" }, { "weight": 1 }] },
+
   { "featureType": "road.arterial", "elementType": "geometry.fill", "stylers": [{ "color": "#0A4048" }] },
   { "featureType": "road.arterial", "elementType": "geometry.stroke", "stylers": [{ "color": "#008A9A" }] },
+
   { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
-  { "featureType": "transit", "stylers": [{ "visibility": "off" }] },
+
   { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#000508" }] },
   { "featureType": "water", "elementType": "labels.text.fill", "stylers": [{ "color": "#004555" }] }
 ];
@@ -145,6 +154,7 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
             </View>
           </Marker>
         ))}
+
         {editable && initialLocation && (
           <Marker
             coordinate={{ latitude: initialLocation.latitude, longitude: initialLocation.longitude }}
@@ -159,6 +169,7 @@ const CustomMapView = forwardRef<MapViewHandle, MapViewProps>(({
             </View>
           </Marker>
         )}
+
         {routeTo && userLocation && (
           <>
             <Polyline

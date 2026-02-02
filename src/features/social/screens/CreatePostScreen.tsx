@@ -17,6 +17,7 @@ const CreatePostScreen = () => {
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation<CreatePostNavigationProp>();
 
+  // Use Redux auth state (Supabase user)
   const { user } = useSelector((state: RootState) => state.auth);
 
   const pickImage = async () => {
@@ -45,6 +46,7 @@ const CreatePostScreen = () => {
       return;
     }
 
+    // Usamos el usuario tipado correctamente para el chequeo
     if (!user) {
       Alert.alert('Error', 'Debes iniciar sesión para publicar');
       return;
@@ -57,8 +59,8 @@ const CreatePostScreen = () => {
         content,
         imageUrl: image || undefined,
         userId: user.id,
-        userName: user.name || 'Usuario',
-        userAvatar: user.avatar,
+        userName: user.name || 'Usuario Anónimo',
+        userAvatar: user.avatar || undefined,
       });
 
       navigation.goBack();

@@ -39,6 +39,12 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
 import SwapScreen from '../screens/swap/SwapScreen';
 import TransferInboxScreen from '../screens/att/tickets/TransferInboxScreen';
+import OrganizationScreen from '../screens/org/OrganizationScreen';
+import RRPPDashboardScreen from '../screens/rrpp/RRPPDashboardScreen';
+import { organizationService } from '../services/organizationService';
+
+// Resale screens
+import { CreateResaleScreen, ResaleMarketScreen, MyListingsScreen } from '../screens/resale';
 
 // Pantallas de carga y autenticación (Temporales)
 const LoadingScreen = PlaceholderScreen;
@@ -195,6 +201,28 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 iconNameFocused = 'swap-horizontal';
                 label = 'Swap';
                 break;
+              case 'DynamicTab':
+                // We need to determine which icon to show. 
+                // Since this runs inside the component, we can use the same context or props.
+                // However, navigation options are passed in descriptors!
+                // We can read options.tabBarLabel to know what it is currently.
+                const currentLabel = options.tabBarLabel;
+
+                if (currentLabel === 'Eventos') {
+                  iconName = 'calendar-outline';
+                  iconNameFocused = 'calendar';
+                  label = 'Eventos';
+                } else if (currentLabel === 'RRPP') {
+                  iconName = 'megaphone-outline';
+                  iconNameFocused = 'megaphone';
+                  label = 'RRPP';
+                } else {
+                  // Default to Tickets
+                  iconName = 'ticket-outline';
+                  iconNameFocused = 'ticket';
+                  label = 'Tickets';
+                }
+                break;
               case 'Perfil':
                 iconName = 'person-outline';
                 iconNameFocused = 'person';
@@ -259,8 +287,42 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
 
 const MainTabs = () => {
   const { user } = useSelector((state: RootState) => state.auth);
-  const isOrg = user?.roles.includes('organizer') && user?.activeRole === 'organizer';
+  // Remove "isOrg" from Redux activeRole, now use context
+  const [orgContext, setOrgContext] = useState<any>(null);
+
+  useEffect(() => {
+    const loadContext = async () => {
+      try {
+        const context = await organizationService.getUserOrgContext();
+        setOrgContext(context);
+      } catch (error) {
+        console.error('Error loading org context', error);
+      }
+    };
+    if (user) {
+      loadContext();
+    }
+  }, [user]);
+
   const Tab = createBottomTabNavigator<any>();
+
+  // Determine which screen to show in the "Org" tab
+  let OrgTabComponent = OrganizationScreen; // Default: Create/Manage Org
+  let orgTabLabel = 'Organizar';
+  let orgTabIcon = 'business-outline';
+  let orgTabIconFocused = 'business';
+
+  if (orgContext?.isRRPP && !orgContext?.hasOrganizations) {
+    OrgTabComponent = RRPPDashboardScreen;
+    orgTabLabel = 'RRPP';
+    orgTabIcon = 'megaphone-outline';
+    orgTabIconFocused = 'megaphone';
+  } else if (orgContext?.hasOrganizations) {
+    OrgTabComponent = OrganizationScreen;
+    orgTabLabel = 'Mi Org';
+    orgTabIcon = 'briefcase-outline';
+    orgTabIconFocused = 'briefcase';
+  }
 
   return (
     <Tab.Navigator
@@ -271,20 +333,28 @@ const MainTabs = () => {
     >
       <Tab.Screen
         name="Home"
-        component={isOrg ? OrgEventosStack : AttEventosStack}
+        component={AttEventosStack}
       />
       <Tab.Screen
         name="Tickets"
-        component={isOrg ? OrgTicketsStack : AttTicketsStack}
+        component={AttTicketsStack}
       />
       <Tab.Screen
         name="Mapa"
-        component={isOrg ? OrgMapaStack : AttMapaStack}
+        component={AttMapaStack}
       />
+
+      {/* Dynamic Tab: Organization / RRPP */}
       <Tab.Screen
-        name="Swap"
-        component={SwapScreen}
+        name="Org"
+        component={OrgTabComponent}
+        options={{
+          tabBarLabel: orgTabLabel,
+          // We pass custom props via options if needed by CustomTabBar, 
+          // but CustomTabBar needs to be updated to read them or handle "Org" route
+        }}
       />
+
       <Tab.Screen
         name="Perfil"
         component={ProfileScreen}
@@ -335,6 +405,11 @@ export const AppNavigator = () => {
             <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="AttEventoDetalle" component={EventDetailScreen} />
+            {/* Resale Marketplace Screens */}
+            <Stack.Screen name="CreateResale" component={CreateResaleScreen} />
+            <Stack.Screen name="ResaleMarket" component={ResaleMarketScreen} />
+            <Stack.Screen name="MyListings" component={MyListingsScreen} />
+            <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
           </>
         )}
       </Stack.Navigator>

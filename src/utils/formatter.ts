@@ -128,6 +128,7 @@ export const formatCurrency = (
     maximumFractionDigits: 2,
   };
 
+  // Special case for Argentine Peso (ARS) - use symbol display
   if (currency === 'ARS') {
     defaultOptions.currencyDisplay = 'symbol';
   }
