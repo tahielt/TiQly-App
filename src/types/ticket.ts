@@ -29,6 +29,9 @@ export interface Ticket {
 export interface TicketTransfer {
   id: string;
   ticketId: string;
+  eventId?: string;
+  eventTitle: string;
+  eventDate?: Date;
   fromUserId: string;
   fromUserName: string;
   toUserId: string;

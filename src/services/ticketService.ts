@@ -2,6 +2,9 @@ import { supabase } from '../lib/supabase';
 import { Ticket, TicketTransfer, TicketValidation, PurchaseData } from '../types/ticket';
 import * as Crypto from 'expo-crypto';
 
+// Re-export types for convenience
+export type { TicketTransfer } from '../types/ticket';
+
 // Platform fee percentage (15%)
 export const PLATFORM_FEE_PERCENTAGE = 0.15;
 
@@ -182,7 +185,7 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
 
 
 /**
- * Initiate ticket transfer (placeholder)
+ * Initiate ticket transfer
  */
 export const initiateTicketTransfer = async (
   ticketId: string,
@@ -191,10 +194,21 @@ export const initiateTicketTransfer = async (
   toUserEmail: string,
   message?: string
 ): Promise<TicketTransfer> => {
+  // Get ticket info for eventTitle
+  const { data: ticketData } = await supabase
+    .from('tickets')
+    .select('event_id, event:events!event_id(title, start_date)')
+    .eq('id', ticketId)
+    .single();
+
+  const eventInfo = (ticketData as any)?.event;
   const transferId = Crypto.randomUUID();
   const transfer: TicketTransfer = {
     id: transferId,
     ticketId,
+    eventId: ticketData?.event_id,
+    eventTitle: eventInfo?.title || 'Evento',
+    eventDate: eventInfo?.start_date ? new Date(eventInfo.start_date) : undefined,
     fromUserId,
     fromUserName,
     toUserId: 'pending_user',
@@ -204,6 +218,9 @@ export const initiateTicketTransfer = async (
     requestDate: new Date(),
     message
   };
+
+  // TODO: Save transfer to database (ticket_transfers table)
+
   return transfer;
 };
 
