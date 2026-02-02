@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
@@ -47,8 +48,16 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
       return null;
     }
 
+
+    // Use any cast to avoid TS errors with expo-constants versions
+    const constants = Constants as any;
+    const projectId = constants.expoConfig?.extra?.eas?.projectId ?? constants.easConfig?.projectId;
+    if (!projectId) {
+      console.log('Project ID not found - Push Notifications might fail in production');
+    }
+
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: 'your-project-id',
+      projectId,
     });
     const token = tokenData.data;
 

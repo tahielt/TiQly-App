@@ -42,6 +42,7 @@ import TransferInboxScreen from '../screens/att/tickets/TransferInboxScreen';
 import OrganizationScreen from '../screens/org/OrganizationScreen';
 import RRPPDashboardScreen from '../screens/rrpp/RRPPDashboardScreen';
 import { organizationService } from '../services/organizationService';
+import { registerForPushNotifications } from '../services/notificationService';
 
 // Resale screens
 import { CreateResaleScreen, ResaleMarketScreen, MyListingsScreen } from '../screens/resale';
@@ -382,6 +383,13 @@ export const AppNavigator = () => {
 
     checkAuth();
   }, [dispatch]);
+
+  // Register for push notifications when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      registerForPushNotifications().catch(err => console.error('Push Reg Error:', err));
+    }
+  }, [isAuthenticated]);
 
   if (!isAppReady || isLoading) {
     return <LoadingScreen />;

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { useSelector } from 'react-redux';
 import { useRoute } from '@react-navigation/native';
 import { getPostById, addComment, toggleLike } from '../socialService';
 import type { Comment, Post } from '../socialService';
@@ -17,6 +18,7 @@ type PostDetailRouteProp = {
 const PostDetailScreen = () => {
   const route = useRoute<PostDetailRouteProp>();
   const { postId } = route.params;
+  const { user } = useSelector((state: any) => state.auth);
 
   const [post, setPost] = useState<Post | null>(null);
   const [comment, setComment] = useState('');
@@ -62,8 +64,7 @@ const PostDetailScreen = () => {
 
     try {
       const newComment = await addComment(postId, {
-        userId: 'current-user-id',
-        userName: 'Usuario Actual',
+        userId: user.id,
         content: comment,
       });
 
@@ -86,7 +87,7 @@ const PostDetailScreen = () => {
     setLiking(true);
 
     try {
-      const userId = 'current-user-id';
+      const userId = user.id;
       const currentLikes = post.likes || [];
       const isLiked = currentLikes.includes(userId);
 
@@ -137,7 +138,7 @@ const PostDetailScreen = () => {
     );
   }
 
-  const isLiked = post.likes?.includes('current-user-id') || false;
+  const isLiked = post.likes?.includes(user?.id) || false;
 
   return (
     <View style={styles.container}>
