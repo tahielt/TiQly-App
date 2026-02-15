@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
 import { supabase } from '../../../lib/supabase';
+import { EVENT_CATEGORIES } from '../../../lib/mock-data';
 import MapView from '../../../components/MapView';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -31,7 +32,9 @@ const CreateEventScreen = () => {
     city: 'Bariloche',
     latitude: '-41.133',
     longitude: '-71.310',
-    coverImage: ''
+    coverImage: '',
+    spotifyArtist: '',
+    spotifyPlaylist: '',
   });
 
   const pickMedia = async () => {
@@ -133,6 +136,14 @@ const CreateEventScreen = () => {
 
     setLoading(true);
 
+    // Get current user first
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('Error', 'Debes estar logueado para crear eventos.');
+      setLoading(false);
+      return;
+    }
+
     // Upload cover image to Supabase Storage if selected
     let coverImageUrl = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200';
 
@@ -152,7 +163,6 @@ const CreateEventScreen = () => {
         if (uploadError) {
           console.warn('Upload error (using default image):', uploadError.message);
           Alert.alert('Aviso', 'No se pudo subir la imagen (¿Bucket "event-covers" existe?). Usando imagen por defecto.');
-          // Continue with default image if upload fails
         } else {
           const { data: urlData } = supabase.storage
             .from('event-covers')
@@ -161,7 +171,6 @@ const CreateEventScreen = () => {
         }
       } catch (uploadErr) {
         console.warn('Error uploading image:', uploadErr);
-        // Continue with default image
       }
     }
 
@@ -191,9 +200,11 @@ const CreateEventScreen = () => {
           longitude: parseFloat(form.longitude)
         }
       },
-      organizerId: 'org_1',
-      organizerName: 'Electronic Hub',
+      organizerId: user.id,
+      organizerName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Organizador',
       coverImage: coverImageUrl,
+      spotifyArtist: form.spotifyArtist || null,
+      spotifyPlaylist: form.spotifyPlaylist || null,
       status: 'published',
       attendeeCount: 0,
       createdAt: new Date(),
@@ -202,14 +213,6 @@ const CreateEventScreen = () => {
     };
 
     try {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('Error', 'Debes estar logueado para crear eventos.');
-        setLoading(false);
-        return;
-      }
-
       const success = await eventService.createEvent(newEvent, user.id);
       setLoading(false);
       if (success) {
@@ -273,7 +276,7 @@ const CreateEventScreen = () => {
 
             <Text style={styles.label}>Categoría</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categories}>
-              {['Fiesta Electrónica', 'Cachengue'].map((cat) => (
+              {EVENT_CATEGORIES.filter(c => c !== 'Todos').map((cat) => (
                 <TouchableOpacity
                   key={cat}
                   style={[styles.chip, form.category === cat && styles.chipActive]}
@@ -283,6 +286,35 @@ const CreateEventScreen = () => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* Spotify Integration */}
+            <View style={styles.spotifySection}>
+              <View style={styles.spotifyHeader}>
+                <Ionicons name="musical-notes" size={20} color="#1DB954" />
+                <Text style={[styles.label, { color: '#1DB954', marginBottom: 0 }]}>Spotify</Text>
+              </View>
+              <TextInput
+                style={[styles.input, styles.spotifyInput]}
+                placeholder="Link del artista/DJ en Spotify"
+                placeholderTextColor="#666"
+                value={form.spotifyArtist}
+                onChangeText={(t) => setForm({ ...form, spotifyArtist: t })}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+              <TextInput
+                style={[styles.input, styles.spotifyInput]}
+                placeholder="Link de playlist en Spotify (opcional)"
+                placeholderTextColor="#666"
+                value={form.spotifyPlaylist}
+                onChangeText={(t) => setForm({ ...form, spotifyPlaylist: t })}
+                autoCapitalize="none"
+                keyboardType="url"
+              />
+              <Text style={styles.spotifyHint}>
+                Pega el link del perfil del DJ o una playlist del evento
+              </Text>
+            </View>
 
             <Text style={styles.label}>Descripción</Text>
             <TextInput
@@ -726,7 +758,29 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: '#FF4444',
-  }
+  },
+  spotifySection: {
+    backgroundColor: 'rgba(29, 185, 84, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(29, 185, 84, 0.2)',
+    gap: 10,
+  },
+  spotifyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  spotifyInput: {
+    borderColor: 'rgba(29, 185, 84, 0.3)',
+  },
+  spotifyHint: {
+    color: '#666',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
 });
 
 export default CreateEventScreen;

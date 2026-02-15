@@ -16,7 +16,7 @@ export const MOCK_EVENTS: any[] = [
         title: 'Gotham White Party',
         description: 'Fiesta electrónica con DJs locales para empezar el verano.',
         organizerId: 'org_1',
-        organizerName: 'Electronic Hub',
+        organizerName: 'Metanoia',
         type: 'public',
         status: 'published',
         location: {
@@ -60,9 +60,9 @@ export const MOCK_EVENTS: any[] = [
         title: 'Sunset en Berkana',
         description: 'Música house al atardecer en la terraza del hotel.',
         organizerId: 'org_1',
-        organizerName: 'Electronic Hub',
+        organizerName: 'External',
         type: 'public',
-        status: 'published',
+        status: 'published',    
         location: {
             address: 'Hotel Berkana',
             city: 'Bariloche',
@@ -82,7 +82,7 @@ export const MOCK_EVENTS: any[] = [
         title: 'Cachengue 2025',
         description: 'Bailamos hasta el amanecer con los mejores hits del momento.',
         organizerId: 'org_2',
-        organizerName: 'Fiesta BRC',
+        organizerName: 'Bariloche Baila',
         type: 'public',
         status: 'published',
         location: {
