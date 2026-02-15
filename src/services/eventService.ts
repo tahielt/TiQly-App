@@ -166,7 +166,7 @@ export const eventService = {
     const eventsToInsert = [
       {
         title: 'Gotham White Party',
-        description: 'La mejor fiesta electrónica del verano.',
+        description: 'La mejor fiesta electrónica del verano. Djs invitados y show de luces.',
         organizer_id: userId,
         category: 'Fiesta Electrónica',
         cover_image: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=600&auto=format&fit=crop',
@@ -179,7 +179,7 @@ export const eventService = {
       },
       {
         title: 'Boris Brejcha en el Centro Cívico',
-        description: 'High-Tech Minimal en el lugar más icónico.',
+        description: 'El rey del High-Tech Minimal llega al lugar más icónico de la ciudad.',
         organizer_id: userId,
         category: 'Fiesta Electrónica',
         cover_image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop',
@@ -192,7 +192,7 @@ export const eventService = {
       },
       {
         title: 'Hash Fest - Apertura',
-        description: 'Cachengue y reggaeton hasta el amanecer.',
+        description: 'Cachengue, reggaeton y la mejor onda para bailar hasta el amanecer.',
         organizer_id: userId,
         category: 'Cachengue',
         cover_image: 'https://images.unsplash.com/photo-1545128485-c400e7702796?q=80&w=600&auto=format&fit=crop',
@@ -204,95 +204,17 @@ export const eventService = {
         tags: ['cachengue', 'hash', 'fiesta']
       },
       {
-        title: 'Tributo a Soda Stereo',
-        description: 'Los clásicos del rock nacional en vivo.',
+        title: 'Bariloche Baila 2026',
+        description: 'El festival de cachengue más grande de la patagonia.',
         organizer_id: userId,
-        category: 'Rock',
-        cover_image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=600&auto=format&fit=crop',
-        address: 'Anfiteatro del Lago', city: 'Bariloche',
-        latitude: -41.1375, longitude: -71.302,
-        start_date: new Date(Date.now() + 86400000 * 7).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 7 + 14400000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['rock', 'tributo', 'soda']
-      },
-      {
-        title: 'Perreo Intenso',
-        description: 'Bad Bunny, Feid, Karol G y más.',
-        organizer_id: userId,
-        category: 'Reggaeton',
-        cover_image: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?q=80&w=600&auto=format&fit=crop',
-        address: 'Discoteca Roura', city: 'Bariloche',
-        latitude: -41.1318, longitude: -71.3112,
-        start_date: new Date(Date.now() + 86400000 * 8).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 8 + 18000000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['reggaeton', 'perreo', 'latina']
-      },
-      {
-        title: 'Freestyle Battle Night',
-        description: 'MCs de la Patagonia. Beats en vivo.',
-        organizer_id: userId,
-        category: 'Hip-Hop',
-        cover_image: 'https://images.unsplash.com/photo-1547355253-ff0740f6e8c1?q=80&w=600&auto=format&fit=crop',
-        address: 'Centro Cultural', city: 'Bariloche',
-        latitude: -41.1362, longitude: -71.3075,
-        start_date: new Date(Date.now() + 86400000 * 12).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 12 + 14400000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['hiphop', 'freestyle', 'rap']
-      },
-      {
-        title: 'Patagonia Music Fest 2026',
-        description: '3 escenarios, 20 artistas, 12 horas.',
-        organizer_id: userId,
-        category: 'Festival',
-        cover_image: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?q=80&w=600&auto=format&fit=crop',
-        address: 'Cerro Catedral Base', city: 'Bariloche',
-        latitude: -41.166, longitude: -71.440,
+        category: 'Cachengue',
+        cover_image: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=600&auto=format&fit=crop',
+        address: 'Puerto San Carlos', city: 'Bariloche',
+        latitude: -41.132, longitude: -71.305,
         start_date: new Date(Date.now() + 86400000 * 15).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 15 + 43200000).toISOString(),
+        end_date: new Date(Date.now() + 86400000 * 15 + 28800000).toISOString(),
         status: 'published', is_public: true,
-        tags: ['festival', 'montaña', 'music']
-      },
-      {
-        title: 'After Hours — Sunrise Set',
-        description: 'Minimal techno con vista al lago.',
-        organizer_id: userId,
-        category: 'After',
-        cover_image: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=600&auto=format&fit=crop',
-        address: 'Bahía Serena', city: 'Bariloche',
-        latitude: -41.130, longitude: -71.315,
-        start_date: new Date(Date.now() + 86400000 * 3).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 3 + 25200000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['after', 'sunrise', 'minimal']
-      },
-      {
-        title: 'Summer Splash — Pool Party',
-        description: 'Pileta, DJs, cocktails.',
-        organizer_id: userId,
-        category: 'Pool Party',
-        cover_image: 'https://images.unsplash.com/photo-1530549387789-4c1017266635?q=80&w=600&auto=format&fit=crop',
-        address: 'Hotel Llao Llao', city: 'Bariloche',
-        latitude: -41.058, longitude: -71.530,
-        start_date: new Date(Date.now() + 86400000 * 6).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 6 + 25200000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['pool', 'summer', 'drinks']
-      },
-      {
-        title: 'Jazz en el Bosque',
-        description: 'Jazz acústico con vino y fuego.',
-        organizer_id: userId,
-        category: 'Jazz & Blues',
-        cover_image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&auto=format&fit=crop',
-        address: 'Colonia Suiza', city: 'Bariloche',
-        latitude: -41.084, longitude: -71.498,
-        start_date: new Date(Date.now() + 86400000 * 9).toISOString(),
-        end_date: new Date(Date.now() + 86400000 * 9 + 14400000).toISOString(),
-        status: 'published', is_public: true,
-        tags: ['jazz', 'blues', 'acustico']
+        tags: ['cachengue', 'festival', 'lago']
       }
     ];
 

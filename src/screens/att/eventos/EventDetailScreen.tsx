@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Dimensions, StatusBar, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
@@ -234,6 +234,51 @@ const EventDetailScreen = () => {
                         <Text style={styles.sectionTitle}>Organizador</Text>
                         <Text style={styles.organizer}>{event.organizerName}</Text>
 
+                        {/* 🎵 Spotify Section */}
+                        {(event.spotifyArtist || event.spotifyPlaylist) && (
+                            <>
+                                <View style={styles.divider} />
+                                <View style={styles.spotifySection}>
+                                    <View style={styles.spotifyHeader}>
+                                        <Ionicons name="musical-notes" size={20} color="#1DB954" />
+                                        <Text style={styles.spotifySectionTitle}>Spotify</Text>
+                                    </View>
+
+                                    {event.spotifyArtist && (
+                                        <TouchableOpacity
+                                            style={styles.spotifyLink}
+                                            onPress={() => Linking.openURL(event.spotifyArtist!)}
+                                        >
+                                            <View style={styles.spotifyIconCircle}>
+                                                <Ionicons name="person" size={16} color="#1DB954" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.spotifyLinkLabel}>Artista / DJ</Text>
+                                                <Text style={styles.spotifyLinkUrl} numberOfLines={1}>Abrir en Spotify</Text>
+                                            </View>
+                                            <Ionicons name="open-outline" size={18} color="#1DB954" />
+                                        </TouchableOpacity>
+                                    )}
+
+                                    {event.spotifyPlaylist && (
+                                        <TouchableOpacity
+                                            style={styles.spotifyLink}
+                                            onPress={() => Linking.openURL(event.spotifyPlaylist!)}
+                                        >
+                                            <View style={styles.spotifyIconCircle}>
+                                                <Ionicons name="list" size={16} color="#1DB954" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.spotifyLinkLabel}>Playlist del Evento</Text>
+                                                <Text style={styles.spotifyLinkUrl} numberOfLines={1}>Abrir en Spotify</Text>
+                                            </View>
+                                            <Ionicons name="open-outline" size={18} color="#1DB954" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            </>
+                        )}
+
                         {/* Extra space for footer */}
                         <View style={{ height: 100 }} />
                     </View>
@@ -443,6 +488,47 @@ const styles = StyleSheet.create({
         color: '#000',
         fontWeight: 'bold',
         fontSize: 16,
+    },
+    spotifySection: {
+        gap: 10,
+    },
+    spotifyHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    spotifySectionTitle: {
+        color: '#1DB954',
+        fontSize: 18,
+        fontWeight: '800',
+    },
+    spotifyLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: 'rgba(29,185,84,0.1)',
+        borderRadius: 14,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(29,185,84,0.25)',
+    },
+    spotifyIconCircle: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(29,185,84,0.15)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    spotifyLinkLabel: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    spotifyLinkUrl: {
+        color: '#1DB954',
+        fontSize: 12,
+        marginTop: 2,
     },
 });
 
