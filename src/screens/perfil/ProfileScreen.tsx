@@ -24,16 +24,19 @@ import { clearAllTestData } from '../../lib/mock-data';
 import { eventService } from '../../services/eventService';
 import { supabase } from '../../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { getUserGamificationState, UserGamificationState } from '../../services/xpService';
+import { LevelProgressBar } from '../../components/gamification';
 
 // Payment methods placeholder (will integrate with Mercado Pago later)
 const PLACEHOLDER_PAYMENT_METHODS: any[] = [];
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }: any) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
 
   // Real stats from Supabase
   const [stats, setStats] = useState({ tickets: 0, events: 0, following: 0 });
+  const [xpState, setXpState] = useState<UserGamificationState | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
   // Edit Profile Modal State
@@ -77,6 +80,10 @@ const ProfileScreen = () => {
         events: uniqueEvents.size,
         following: 0 // TODO: Implement following when social is ready
       });
+
+      // Load Gamification State
+      const gamificationState = await getUserGamificationState(user.id);
+      setXpState(gamificationState);
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
@@ -228,6 +235,16 @@ const ProfileScreen = () => {
           <Text style={styles.userName}>{user?.name || 'Nombre Usuario'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'email@tiqly.app'}</Text>
           {user?.phone && <Text style={styles.userPhone}>📱 {user.phone}</Text>}
+
+          {xpState && (
+            <View style={{ width: '80%', marginTop: 16 }}>
+              <LevelProgressBar
+                level={xpState.level}
+                progress={xpState.progressToNextLevel}
+                xpToNext={xpState.xpToNextLevel}
+              />
+            </View>
+          )}
         </View>
 
         {/* Stats */}
@@ -342,7 +359,7 @@ const ProfileScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
             <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
               <Ionicons name="notifications-outline" size={22} color="#fff" />
             </View>
@@ -350,7 +367,7 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
             <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
               <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
             </View>
@@ -358,7 +375,7 @@ const ProfileScreen = () => {
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
             <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
               <Ionicons name="help-circle-outline" size={22} color="#fff" />
             </View>

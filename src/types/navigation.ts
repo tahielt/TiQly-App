@@ -32,6 +32,8 @@ export type RootStackParamList = {
   ResaleMarket: { eventId: string; eventTitle?: string };
   MyListings: undefined;
   MyTickets: undefined;
+  Settings: undefined;
+  SwapScreen: undefined;
 };
 
 // Stacks para cada rol
@@ -67,15 +69,7 @@ export type AttTicketsStackParamList = {
   TransferInbox: undefined;
 };
 
-export type OrgTranspStackParamList = {
-  OrgTranspHome: undefined;
-  OrgTranspDetalle: { transportId: string };
-};
-
-export type AttTranspStackParamList = {
-  AttTranspHome: undefined;
-  AttTranspDetalle: { transportId: string };
-};
+// Transport stack types removed from MVP
 
 export type CuentaStackParamList = {
   CuentaHome: undefined;
@@ -84,10 +78,10 @@ export type CuentaStackParamList = {
 };
 
 export type MainTabParamList = {
-  Eventos: undefined;
-  Social: undefined;
-  Mapa: undefined;
+  Home: undefined;
   Tickets: undefined;
-  Transporte: undefined;
-  Cuenta: undefined;
+  Mapa: undefined;
+  Social: undefined;
+  Org: undefined;
+  Perfil: undefined;
 };
