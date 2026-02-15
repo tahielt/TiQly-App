@@ -43,6 +43,8 @@ export interface Event {
   maxAttendees?: number;
   tags: string[];
   category: string;
+  spotifyArtist?: string | null;
+  spotifyPlaylist?: string | null;
   ageRestriction?: number;
   // Para eventos privados/exclusivos
   invitedUsers?: string[];
