@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase';
 import { EVENT_CATEGORIES } from '../../../lib/mock-data';
 import MapView from '../../../components/MapView';
 import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 interface TicketLote {
   id: string;
@@ -20,6 +21,14 @@ const LOTE_PRESETS = ['Early Bird', 'General', 'VIP', 'Last Call', 'VIP Last Cal
 const CreateEventScreen = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [eventDate, setEventDate] = useState(new Date());
+  const [eventTime, setEventTime] = useState(() => {
+    const t = new Date();
+    t.setHours(22, 0, 0, 0);
+    return t;
+  });
 
   // Form State
   const [form, setForm] = useState({
@@ -330,23 +339,61 @@ const CreateEventScreen = () => {
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.label}>Fecha</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#666"
-                  value={form.startDate}
-                  onChangeText={(t) => setForm({ ...form, startDate: t })}
-                />
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Ionicons name="calendar-outline" size={18} color="#00D9FF" />
+                  <Text style={styles.pickerButtonText}>
+                    {eventDate.toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={eventDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(event, date) => {
+                      setShowDatePicker(Platform.OS === 'ios');
+                      if (date) {
+                        setEventDate(date);
+                        setForm({ ...form, startDate: date.toISOString().split('T')[0] });
+                      }
+                    }}
+                    themeVariant="dark"
+                  />
+                )}
               </View>
               <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.label}>Hora</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#666"
-                  value={form.startTime}
-                  onChangeText={(t) => setForm({ ...form, startTime: t })}
-                />
+                <TouchableOpacity
+                  style={styles.pickerButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Ionicons name="time-outline" size={18} color="#00D9FF" />
+                  <Text style={styles.pickerButtonText}>
+                    {eventTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
+                {showTimePicker && (
+                  <DateTimePicker
+                    value={eventTime}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    is24Hour={true}
+                    onChange={(event, time) => {
+                      setShowTimePicker(Platform.OS === 'ios');
+                      if (time) {
+                        setEventTime(time);
+                        const hours = time.getHours().toString().padStart(2, '0');
+                        const minutes = time.getMinutes().toString().padStart(2, '0');
+                        setForm({ ...form, startTime: `${hours}:${minutes}` });
+                      }
+                    }}
+                    themeVariant="dark"
+                  />
+                )}
               </View>
             </View>
 
@@ -780,6 +827,21 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#111111',
+    borderWidth: 1,
+    borderColor: 'rgba(0,217,255,0.2)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  pickerButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 
