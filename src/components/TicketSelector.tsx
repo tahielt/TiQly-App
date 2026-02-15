@@ -137,6 +137,23 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                     </View>
                 </View>
 
+                {/* Price Breakdown */}
+                <View style={styles.priceBreakdown}>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Entrada {selectedTier.name}</Text>
+                        <Text style={styles.priceValue}>${selectedTier.price.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Cargo por servicio</Text>
+                        <Text style={styles.priceValue}>${Math.round(selectedTier.price * 0.15).toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    <View style={styles.priceRow}>
+                        <Text style={styles.totalLabel}>Total</Text>
+                        <Text style={styles.totalValue}>${Math.round(selectedTier.price * 1.15).toLocaleString()}</Text>
+                    </View>
+                </View>
+
                 <TouchableOpacity
                     style={[styles.buyButton, { backgroundColor: selectedTier.color }]}
                     onPress={() => onSelect(selectedTier)}
@@ -148,7 +165,7 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                         end={{ x: 0, y: 0.5 }}
                     />
                     <Text style={[styles.buyButtonText, { color: selectedTier.textColor }]}>
-                        {selectedTier.price > 0 ? `Comprar por $${selectedTier.price.toLocaleString()}` : 'Obtener Gratis'}
+                        Confirmar Compra
                     </Text>
                     <Ionicons name="flash" size={18} color={selectedTier.textColor} />
                 </TouchableOpacity>
@@ -253,6 +270,46 @@ const styles = StyleSheet.create({
     perkText: {
         color: '#ccc',
         fontSize: 14,
+    },
+    priceBreakdown: {
+        width: '100%',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    priceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    priceLabel: {
+        color: '#999',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    priceValue: {
+        color: '#ccc',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        marginVertical: 12,
+    },
+    totalLabel: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    totalValue: {
+        color: '#00D9FF',
+        fontSize: 18,
+        fontWeight: '900',
     },
     buyButton: {
         flexDirection: 'row',

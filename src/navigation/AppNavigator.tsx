@@ -15,8 +15,6 @@ import {
   AttMapaStackParamList,
   OrgTicketsStackParamList,
   AttTicketsStackParamList,
-  OrgTranspStackParamList,
-  AttTranspStackParamList,
   CuentaStackParamList,
   SocialStackParamList
 } from '../types/navigation';
@@ -38,6 +36,8 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import MapScreen from '../screens/map/MapScreen';
 import SwapScreen from '../screens/swap/SwapScreen';
+import SocialNavigator from '../features/social/navigation/SocialNavigator';
+import SettingsScreen from '../screens/perfil/SettingsScreen';
 import TransferInboxScreen from '../screens/att/tickets/TransferInboxScreen';
 import OrganizationScreen from '../screens/org/OrganizationScreen';
 import RRPPDashboardScreen from '../screens/rrpp/RRPPDashboardScreen';
@@ -118,34 +118,15 @@ const AttTicketsStack = () => {
   );
 };
 
-// Stacks para Transporte
-const OrgTranspStack = () => {
-  const Stack = createStackNavigator<OrgTranspStackParamList>();
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="OrgTranspHome" component={PlaceholderScreen} />
-      <Stack.Screen name="OrgTranspDetalle" component={PlaceholderScreen} />
-    </Stack.Navigator>
-  );
-};
-
-const AttTranspStack = () => {
-  const Stack = createStackNavigator<AttTranspStackParamList>();
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="AttTranspHome" component={PlaceholderScreen} />
-      <Stack.Screen name="AttTranspDetalle" component={PlaceholderScreen} />
-    </Stack.Navigator>
-  );
-};
+// Transport stacks removed from MVP
 
 // Stack para Cuenta
 const CuentaStack = () => {
   const Stack = createStackNavigator<CuentaStackParamList>();
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="CuentaHome" component={PlaceholderScreen} />
-      <Stack.Screen name="Ajustes" component={PlaceholderScreen} />
+      <Stack.Screen name="CuentaHome" component={SettingsScreen} />
+      <Stack.Screen name="Ajustes" component={SettingsScreen} />
       <Stack.Screen name="Perfil" component={ProfileScreen} />
     </Stack.Navigator>
   );
@@ -197,33 +178,28 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 iconNameFocused = 'map';
                 label = '';
                 break;
-              case 'Swap':
-                iconName = 'swap-horizontal-outline';
-                iconNameFocused = 'swap-horizontal';
-                label = 'Swap';
+              case 'Social':
+                iconName = 'people-outline';
+                iconNameFocused = 'people';
+                label = 'Social';
                 break;
-              case 'DynamicTab':
-                // We need to determine which icon to show. 
-                // Since this runs inside the component, we can use the same context or props.
-                // However, navigation options are passed in descriptors!
-                // We can read options.tabBarLabel to know what it is currently.
-                const currentLabel = options.tabBarLabel;
-
-                if (currentLabel === 'Eventos') {
-                  iconName = 'calendar-outline';
-                  iconNameFocused = 'calendar';
-                  label = 'Eventos';
-                } else if (currentLabel === 'RRPP') {
+              case 'Org': {
+                const orgTabLabel = options.tabBarLabel;
+                if (orgTabLabel === 'RRPP') {
                   iconName = 'megaphone-outline';
                   iconNameFocused = 'megaphone';
                   label = 'RRPP';
+                } else if (orgTabLabel === 'Mi Org') {
+                  iconName = 'briefcase-outline';
+                  iconNameFocused = 'briefcase';
+                  label = 'Mi Org';
                 } else {
-                  // Default to Tickets
-                  iconName = 'ticket-outline';
-                  iconNameFocused = 'ticket';
-                  label = 'Tickets';
+                  iconName = 'business-outline';
+                  iconNameFocused = 'business';
+                  label = 'Organizar';
                 }
                 break;
+              }
               case 'Perfil':
                 iconName = 'person-outline';
                 iconNameFocused = 'person';
@@ -344,6 +320,10 @@ const MainTabs = () => {
         name="Mapa"
         component={AttMapaStack}
       />
+      <Tab.Screen
+        name="Social"
+        component={SocialNavigator}
+      />
 
       {/* Dynamic Tab: Organization / RRPP */}
       <Tab.Screen
@@ -351,8 +331,6 @@ const MainTabs = () => {
         component={OrgTabComponent}
         options={{
           tabBarLabel: orgTabLabel,
-          // We pass custom props via options if needed by CustomTabBar, 
-          // but CustomTabBar needs to be updated to read them or handle "Org" route
         }}
       />
 
@@ -412,12 +390,15 @@ export const AppNavigator = () => {
             <Stack.Screen name="RoleGate" component={RoleGateScreen} />
             <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AttEventoDetalle" component={EventDetailScreen} />
             {/* Resale Marketplace Screens */}
             <Stack.Screen name="CreateResale" component={CreateResaleScreen} />
             <Stack.Screen name="ResaleMarket" component={ResaleMarketScreen} />
             <Stack.Screen name="MyListings" component={MyListingsScreen} />
             <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
+            {/* Swap still accessible from deep links */}
+            <Stack.Screen name="SwapScreen" component={SwapScreen} />
           </>
         )}
       </Stack.Navigator>

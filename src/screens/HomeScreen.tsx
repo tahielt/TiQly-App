@@ -6,6 +6,8 @@ import { eventService } from '../services/eventService';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
+import { checkDailyStreak } from '../services/xpService';
+import { DailyRewardModal } from '../components/gamification';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CAROUSEL_ITEM_WIDTH = SCREEN_WIDTH - 60;
@@ -24,11 +26,30 @@ const HomeScreen = () => {
   const searchInputRef = useRef<TextInput>(null);
   const searchBarAnim = useRef(new Animated.Value(0)).current;
 
+  // Gamification State
+  const [rewardModalVisible, setRewardModalVisible] = useState(false);
+  const [streakData, setStreakData] = useState({ streak: 0, xpBonus: 0 });
+
   useEffect(() => {
     if (isFocused) {
       loadEvents();
+      checkStreak();
     }
   }, [isFocused]);
+
+  const checkStreak = async () => {
+    if (user?.id) {
+      try {
+        const result = await checkDailyStreak(user.id);
+        if (result.isFirstLogin || result.xpBonus > 0) {
+          setStreakData({ streak: result.streak, xpBonus: result.xpBonus });
+          setRewardModalVisible(true);
+        }
+      } catch (error) {
+        console.log('Error checking streak:', error);
+      }
+    }
+  };
 
   // 🎯 Smart filtering: category + search query
   useEffect(() => {
@@ -260,6 +281,13 @@ const HomeScreen = () => {
           )}
         </View>
       </ScrollView>
+
+      <DailyRewardModal
+        visible={rewardModalVisible}
+        streak={streakData.streak}
+        xpBonus={streakData.xpBonus}
+        onClose={() => setRewardModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };

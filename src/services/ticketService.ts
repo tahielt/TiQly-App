@@ -5,8 +5,8 @@ import * as Crypto from 'expo-crypto';
 // Re-export types for convenience
 export type { TicketTransfer } from '../types/ticket';
 
-// Platform fee percentage (10% as configured in platform_config)
-export const PLATFORM_FEE_PERCENTAGE = 0.10;
+// Platform fee percentage (15% as configured in platform_config)
+export const PLATFORM_FEE_PERCENTAGE = 0.15;
 
 // Generate unique QR code for ticket
 const generateQRCode = async (ticketId: string, userId: string, eventId: string): Promise<string> => {
@@ -40,7 +40,7 @@ export const purchaseTicket = async (
     ticket_type_id: (purchaseData.ticketTypeId && purchaseData.ticketTypeId.length > 30) ? purchaseData.ticketTypeId : null,
     qr_code: qrCode,
     status: 'active',
-    price_paid: purchaseData.totalAmount, // Schema uses price_paid
+    price_paid: purchaseData.finalAmount, // Total amount including 15% service fee
     original_owner_id: userId,
     purchase_date: new Date().toISOString(),
   };
@@ -64,7 +64,7 @@ export const purchaseTicket = async (
     userEmail: userEmail,
     ticketTypeId: purchaseData.ticketTypeId || '',
     ticketTypeName: 'General',
-    price: purchaseData.totalAmount,
+    price: purchaseData.finalAmount, // Total paid including service fee
     qrCode: data.qr_code,
     status: 'active',
     purchaseDate: new Date(data.purchase_date),
