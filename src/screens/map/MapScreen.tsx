@@ -9,7 +9,6 @@ import {
     Dimensions,
     SafeAreaView,
     StatusBar,
-    Alert,
     Animated,
     Platform,
     TextInput,
@@ -20,24 +19,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { EVENT_CATEGORIES } from '../../lib/mock-data';
 import { eventService } from '../../services/eventService';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import MapView from '../../components/MapView';
-import { BlurView } from 'expo-blur';
+import MapView, { MapViewHandle } from '../../components/MapView';
 import * as Haptics from 'expo-haptics';
-import FocusModeCard from '../../components/FocusModeCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const MapScreen = () => {
     const navigation = useNavigation<any>();
     const isFocused = useIsFocused();
-    const mapRef = useRef<any>(null);
+    const mapRef = useRef<MapViewHandle>(null);
 
     // Data State
     const [events, setEvents] = useState<any[]>([]);
     const [selectedCategory, setSelectedCategory] = useState("Todos");
     const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
     const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
-    const [routeTo, setRouteTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
     // Search & Loading State
     const [searchQuery, setSearchQuery] = useState('');
@@ -106,24 +102,27 @@ const MapScreen = () => {
         if (event) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             setSelectedEvent(event);
-            setRouteTo(null);
         }
     }, [events]);
 
     const closeCard = () => {
         setSelectedEvent(null);
-        setRouteTo(null);
     };
 
     const navigateToDetail = (event: any) => {
         navigation.navigate('AttEventoDetalle', { eventId: event.id });
     };
 
+    /**
+     * Opens Google Maps (Android) or Apple Maps (iOS) with real turn-by-turn directions
+     * instead of drawing a fake straight line on the map
+     */
     const handleGetDirections = (event: any) => {
         if (event.location?.coordinates) {
-            setRouteTo(event.location.coordinates);
-        } else {
-            Alert.alert("Error", "Este evento no tiene ubicación válida");
+            mapRef.current?.openDirections(
+                event.location.coordinates,
+                event.title
+            );
         }
     };
 
@@ -147,6 +146,29 @@ const MapScreen = () => {
             month: 'short'
         });
     };
+
+    // Format time
+    const formatTime = (dateString: string) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('es-AR', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    // Get lowest ticket price
+    const getLowestPrice = (event: any) => {
+        if (event.ticketTypes && event.ticketTypes.length > 0) {
+            const lowest = Math.min(...event.ticketTypes.map((t: any) => t.price || 0));
+            return lowest > 0 ? `$${lowest.toLocaleString()}` : 'Gratis';
+        }
+        if (event.price !== undefined) {
+            return event.price > 0 ? `$${event.price.toLocaleString()}` : 'Gratis';
+        }
+        return null;
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
@@ -157,12 +179,6 @@ const MapScreen = () => {
                 style={styles.map}
                 events={mapEvents}
                 onMarkerPress={handleEventPress}
-                initialLocation={{
-                    latitude: -41.133472,
-                    longitude: -71.310278,
-                    zoom: 12
-                }}
-                routeTo={routeTo}
             />
 
             {/* Header */}
@@ -176,7 +192,10 @@ const MapScreen = () => {
                             )}
                             <TouchableOpacity
                                 style={styles.locateBtn}
-                                onPress={() => mapRef.current?.centerOnUser()}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    mapRef.current?.centerOnUser();
+                                }}
                             >
                                 <Ionicons name="locate" size={20} color="#00D9FF" />
                             </TouchableOpacity>
@@ -188,7 +207,7 @@ const MapScreen = () => {
                         <Ionicons name="search" size={18} color="#666" />
                         <TextInput
                             style={styles.searchInput}
-                            placeholder="Buscar eventos..."
+                            placeholder="Buscar eventos, lugares..."
                             placeholderTextColor="#666"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
@@ -203,9 +222,10 @@ const MapScreen = () => {
                     {/* Event Count Badge */}
                     {filteredEvents.length > 0 && (
                         <View style={styles.eventCountBadge}>
+                            <Ionicons name="musical-notes" size={12} color="#00D9FF" />
                             <Text style={styles.eventCountText}>
-                                {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''}
-                                {selectedCategory !== "Todos" ? ` en ${selectedCategory}` : ''}
+                                {filteredEvents.length} evento{filteredEvents.length !== 1 ? 's' : ''} cerca
+                                {selectedCategory !== "Todos" ? ` · ${selectedCategory}` : ''}
                             </Text>
                         </View>
                     )}
@@ -224,7 +244,10 @@ const MapScreen = () => {
                             <TouchableOpacity
                                 key={cat}
                                 style={[styles.chip, isActive && styles.chipActive]}
-                                onPress={() => setSelectedCategory(cat)}
+                                onPress={() => {
+                                    Haptics.selectionAsync();
+                                    setSelectedCategory(cat);
+                                }}
                             >
                                 <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                                     {cat}
@@ -235,7 +258,7 @@ const MapScreen = () => {
                 </ScrollView>
             </SafeAreaView>
 
-            {/* Compact Event Card */}
+            {/* Event Detail Card (appears when a marker is tapped) */}
             <Animated.View
                 style={[
                     styles.cardContainer,
@@ -243,7 +266,7 @@ const MapScreen = () => {
                         transform: [{
                             translateY: cardAnim.interpolate({
                                 inputRange: [0, 1],
-                                outputRange: [200, 0],
+                                outputRange: [300, 0],
                             })
                         }],
                         opacity: cardAnim,
@@ -256,9 +279,12 @@ const MapScreen = () => {
                         {/* Close Button */}
                         <TouchableOpacity
                             style={styles.closeBtn}
-                            onPress={closeCard}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                closeCard();
+                            }}
                         >
-                            <Ionicons name="close" size={20} color="#fff" />
+                            <Ionicons name="close" size={18} color="#fff" />
                         </TouchableOpacity>
 
                         {/* Event Image */}
@@ -266,23 +292,45 @@ const MapScreen = () => {
                             source={{ uri: selectedEvent.coverImage }}
                             style={styles.cardImage}
                         />
+                        <LinearGradient
+                            colors={['transparent', 'rgba(0,0,0,0.8)']}
+                            style={styles.cardImageGradient}
+                        />
+
+                        {/* Price Badge on image */}
+                        {getLowestPrice(selectedEvent) && (
+                            <View style={styles.priceBadge}>
+                                <Text style={styles.priceBadgeText}>
+                                    {getLowestPrice(selectedEvent) === 'Gratis' ? '🎉 Gratis' : `Desde ${getLowestPrice(selectedEvent)}`}
+                                </Text>
+                            </View>
+                        )}
 
                         {/* Content */}
                         <View style={styles.cardContent}>
-                            <View style={styles.cardInfo}>
-                                <Text style={styles.cardTitle} numberOfLines={1}>
-                                    {selectedEvent.title}
-                                </Text>
+                            <Text style={styles.cardTitle} numberOfLines={1}>
+                                {selectedEvent.title}
+                            </Text>
 
+                            <View style={styles.cardMetaRow}>
                                 <View style={styles.cardMeta}>
-                                    <Ionicons name="location" size={14} color="#888" />
-                                    <Text style={styles.cardLocation} numberOfLines={1}>
-                                        {selectedEvent.location?.address || 'Sin dirección'}
+                                    <Ionicons name="calendar" size={13} color="#00D9FF" />
+                                    <Text style={styles.cardMetaText}>
+                                        {formatDate(selectedEvent.startDate)}
                                     </Text>
                                 </View>
+                                <View style={styles.cardMeta}>
+                                    <Ionicons name="time" size={13} color="#00D9FF" />
+                                    <Text style={styles.cardMetaText}>
+                                        {formatTime(selectedEvent.startDate)}
+                                    </Text>
+                                </View>
+                            </View>
 
-                                <Text style={styles.cardDate}>
-                                    {formatDate(selectedEvent.startDate)}
+                            <View style={styles.cardMeta}>
+                                <Ionicons name="location" size={13} color="#888" />
+                                <Text style={styles.cardLocation} numberOfLines={1}>
+                                    {selectedEvent.location?.address || 'Sin dirección'}
                                 </Text>
                             </View>
 
@@ -290,9 +338,12 @@ const MapScreen = () => {
                             <View style={styles.cardActions}>
                                 <TouchableOpacity
                                     style={styles.directionsBtn}
-                                    onPress={() => handleGetDirections(selectedEvent)}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                        handleGetDirections(selectedEvent);
+                                    }}
                                 >
-                                    <Ionicons name="navigate-outline" size={16} color="#000" />
+                                    <Ionicons name="navigate" size={16} color="#00D9FF" />
                                     <Text style={styles.directionsBtnText}>Cómo llegar</Text>
                                 </TouchableOpacity>
 
@@ -327,16 +378,16 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        zIndex: 10, // Below FocusCard (zIndex implicit via View order or explicit)
+        zIndex: 10,
     },
     header: {
-        marginHorizontal: 20,
-        marginTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 10,
-        backgroundColor: 'rgba(20,20,20,0.9)',
-        borderRadius: 16,
+        marginHorizontal: 16,
+        marginTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 8,
+        backgroundColor: 'rgba(10,10,10,0.92)',
+        borderRadius: 20,
         padding: 16,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     headerMain: {
         flexDirection: 'row',
@@ -346,17 +397,18 @@ const styles = StyleSheet.create({
     headerTitle: {
         color: '#fff',
         fontSize: 20,
-        fontWeight: '700',
+        fontWeight: '800',
+        letterSpacing: -0.5,
     },
     locateBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: 'rgba(0,217,255,0.15)',
+        width: 42,
+        height: 42,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0,217,255,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(0,217,255,0.3)',
+        borderColor: 'rgba(0,217,255,0.25)',
     },
     headerActions: {
         flexDirection: 'row',
@@ -365,8 +417,8 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
         paddingHorizontal: 12,
         paddingVertical: 10,
         marginTop: 12,
@@ -380,9 +432,12 @@ const styles = StyleSheet.create({
     },
     eventCountBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: 'rgba(0,217,255,0.2)',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(0,217,255,0.12)',
         paddingHorizontal: 10,
-        paddingVertical: 4,
+        paddingVertical: 5,
         borderRadius: 12,
         marginTop: 10,
     },
@@ -397,16 +452,16 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     filtersContent: {
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         gap: 8,
     },
     chip: {
         paddingHorizontal: 16,
         paddingVertical: 10,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.8)',
+        backgroundColor: 'rgba(0,0,0,0.85)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: 'rgba(255,255,255,0.15)',
     },
     chipActive: {
         backgroundColor: '#00D9FF',
@@ -420,104 +475,129 @@ const styles = StyleSheet.create({
     chipTextActive: {
         color: '#000',
     },
+
     // Card
     cardContainer: {
         position: 'absolute',
         bottom: 100,
-        left: 20,
-        right: 20,
+        left: 16,
+        right: 16,
         zIndex: 20,
     },
     card: {
-        backgroundColor: 'rgba(17,17,17,0.98)',
-        borderRadius: 20,
-        flexDirection: 'row',
-        padding: 12,
+        backgroundColor: 'rgba(12,12,12,0.98)',
+        borderRadius: 24,
+        overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
-        elevation: 10,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
+        elevation: 15,
     },
     closeBtn: {
         position: 'absolute',
-        top: 8,
-        right: 8,
+        top: 12,
+        right: 12,
         zIndex: 10,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: 'rgba(0,0,0,0.6)',
         justifyContent: 'center',
         alignItems: 'center',
     },
     cardImage: {
-        width: 90,
-        height: 90,
-        borderRadius: 14,
+        width: '100%',
+        height: 140,
+    },
+    cardImageGradient: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 100,
+        height: 40,
+    },
+    priceBadge: {
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        backgroundColor: 'rgba(0,217,255,0.9)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 10,
+    },
+    priceBadgeText: {
+        color: '#000',
+        fontSize: 12,
+        fontWeight: '800',
     },
     cardContent: {
-        flex: 1,
-        marginLeft: 14,
-        justifyContent: 'space-between',
-    },
-    cardInfo: {
-        gap: 4,
+        padding: 16,
+        gap: 8,
     },
     cardTitle: {
         color: '#fff',
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800',
+        letterSpacing: -0.3,
+    },
+    cardMetaRow: {
+        flexDirection: 'row',
+        gap: 16,
     },
     cardMeta: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 5,
+    },
+    cardMetaText: {
+        color: '#00D9FF',
+        fontSize: 13,
+        fontWeight: '600',
     },
     cardLocation: {
         color: '#888',
         fontSize: 13,
         flex: 1,
     },
-    cardDate: {
-        color: '#00D9FF',
-        fontSize: 13,
-        fontWeight: '600',
-    },
     cardActions: {
         flexDirection: 'row',
-        gap: 8,
-        marginTop: 8,
+        gap: 10,
+        marginTop: 4,
     },
     directionsBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#fff',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 12,
+        justifyContent: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(0,217,255,0.12)',
+        paddingVertical: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(0,217,255,0.25)',
     },
     directionsBtnText: {
-        color: '#000',
-        fontSize: 12,
-        fontWeight: '600',
+        color: '#00D9FF',
+        fontSize: 13,
+        fontWeight: '700',
     },
     viewBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        justifyContent: 'center',
+        gap: 6,
         backgroundColor: '#00D9FF',
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 12,
+        paddingVertical: 12,
+        borderRadius: 14,
     },
     viewBtnText: {
         color: '#000',
-        fontSize: 12,
-        fontWeight: '700',
+        fontSize: 13,
+        fontWeight: '800',
     },
 });
 
