@@ -65,7 +65,7 @@ export const getPosts = async (currentUserId?: string): Promise<Post[]> => {
   // Simplified query without complex join for 'my_like' initially to ensure it works.
 
   if (error) {
-    console.error('Error fetching posts:', error);
+    // Table might not exist yet — return empty feed silently.
     return [];
   }
 

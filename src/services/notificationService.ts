@@ -53,7 +53,9 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     const constants = Constants as any;
     const projectId = constants.expoConfig?.extra?.eas?.projectId ?? constants.easConfig?.projectId;
     if (!projectId) {
-      console.log('Project ID not found - Push Notifications might fail in production');
+      // No EAS project configured — skip push token registration silently.
+      // Push notifications will work once the project is linked via `eas build`.
+      return null;
     }
 
     const tokenData = await Notifications.getExpoPushTokenAsync({

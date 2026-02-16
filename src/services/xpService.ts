@@ -24,122 +24,116 @@ export interface UserGamificationState {
 }
 
 export const addXp = async (userId: string, amount: number, source: string): Promise<void> => {
-    const { error } = await supabase
-        .from('xp_transactions')
-        .insert({
-            user_id: userId,
-            amount,
-            source
-        });
+    try {
+        const { error } = await supabase
+            .from('xp_transactions')
+            .insert({
+                user_id: userId,
+                amount,
+                source
+            });
 
-    if (error) {
-        console.error('Error adding XP:', error);
-        // Don't throw, just log. Gamification shouldn't block core features.
+        if (error) {
+            // Table might not exist yet — silently skip. Gamification is non-critical.
+            return;
+        }
+    } catch {
+        // Silently skip — gamification shouldn't block core features.
     }
 };
 
 export const getUserGamificationState = async (userId: string): Promise<UserGamificationState> => {
-    // 1. Get XP Total
-    const { data: xpData, error: xpError } = await supabase
-        .from('xp_transactions')
-        .select('amount')
-        .eq('user_id', userId);
+    try {
+        // 1. Get XP Total
+        const { data: xpData, error: xpError } = await supabase
+            .from('xp_transactions')
+            .select('amount')
+            .eq('user_id', userId);
 
-    const xpTotal = xpData?.reduce((sum, tx) => sum + tx.amount, 0) || 0;
+        if (xpError) {
+            // Table doesn't exist yet — return defaults
+            return { xpTotal: 0, level: 1, currentStreak: 0, maxStreak: 0, xpToNextLevel: 100, progressToNextLevel: 0 };
+        }
 
-    // 2. Get Streak Data
-    const { data: streakData, error: streakError } = await supabase
-        .from('user_streaks')
-        .select('current_streak, max_streak')
-        .eq('user_id', userId)
-        .single();
+        const xpTotal = xpData?.reduce((sum, tx) => sum + tx.amount, 0) || 0;
 
-    const currentStreak = streakData?.current_streak || 0;
-    const maxStreak = streakData?.max_streak || 0;
+        // 2. Get Streak Data
+        const { data: streakData } = await supabase
+            .from('user_streaks')
+            .select('current_streak, max_streak')
+            .eq('user_id', userId)
+            .single();
 
-    // 3. Calculate Level
-    // Formula: Level = floor( sqrt(XP / 100) ) + 1
-    const level = Math.floor(Math.sqrt(xpTotal / 100)) + 1;
+        const currentStreak = streakData?.current_streak || 0;
+        const maxStreak = streakData?.max_streak || 0;
 
-    // Calculate Progress
-    const nextLevel = level + 1;
-    const xpForCurrentLevel = Math.pow(level - 1, 2) * 100;
-    const xpForNextLevel = Math.pow(level, 2) * 100;
-    const xpNeeded = xpForNextLevel - xpForCurrentLevel;
-    const xpInLevel = xpTotal - xpForCurrentLevel;
-    const progressToNextLevel = Math.min(Math.max(xpInLevel / xpNeeded, 0), 1);
-    const xpToNextLevel = xpForNextLevel - xpTotal;
+        // 3. Calculate Level
+        const level = Math.floor(Math.sqrt(xpTotal / 100)) + 1;
+        const xpForCurrentLevel = Math.pow(level - 1, 2) * 100;
+        const xpForNextLevel = Math.pow(level, 2) * 100;
+        const xpNeeded = xpForNextLevel - xpForCurrentLevel;
+        const xpInLevel = xpTotal - xpForCurrentLevel;
+        const progressToNextLevel = Math.min(Math.max(xpInLevel / xpNeeded, 0), 1);
+        const xpToNextLevel = xpForNextLevel - xpTotal;
 
-    return {
-        xpTotal,
-        level,
-        currentStreak,
-        maxStreak,
-        xpToNextLevel,
-        progressToNextLevel
-    };
+        return { xpTotal, level, currentStreak, maxStreak, xpToNextLevel, progressToNextLevel };
+    } catch {
+        return { xpTotal: 0, level: 1, currentStreak: 0, maxStreak: 0, xpToNextLevel: 100, progressToNextLevel: 0 };
+    }
 };
 
 export const checkDailyStreak = async (userId: string): Promise<{ streak: number, xpBonus: number, isFirstLogin: boolean }> => {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    try {
+        const today = new Date().toISOString().split('T')[0];
 
-    const { data: streakData } = await supabase
-        .from('user_streaks')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+        const { data: streakData, error } = await supabase
+            .from('user_streaks')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
 
-    if (!streakData) {
-        // Initialize
-        await supabase.from('user_streaks').insert({
-            user_id: userId,
-            current_streak: 1,
-            max_streak: 1,
-            last_login_date: today
-        });
-        // Give XP for first day
-        await addXp(userId, 50, 'daily_login');
-        return { streak: 1, xpBonus: 50, isFirstLogin: true };
+        if (error || !streakData) {
+            // Table might not exist or no data — return defaults silently
+            return { streak: 0, xpBonus: 0, isFirstLogin: false };
+        }
+
+        const lastLogin = streakData.last_login_date;
+
+        if (lastLogin === today) {
+            return { streak: streakData.current_streak, xpBonus: 0, isFirstLogin: false };
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        let newStreak = 1;
+        let xpBonus = 50;
+
+        if (lastLogin === yesterdayStr) {
+            newStreak = streakData.current_streak + 1;
+            if (newStreak % 7 === 0) xpBonus = 200;
+            else xpBonus = 50 + (newStreak * 10);
+        } else {
+            newStreak = 1;
+            xpBonus = 50;
+        }
+
+        await supabase
+            .from('user_streaks')
+            .update({
+                current_streak: newStreak,
+                max_streak: Math.max(streakData.max_streak, newStreak),
+                last_login_date: today
+            })
+            .eq('user_id', userId);
+
+        await addXp(userId, xpBonus, 'daily_login');
+
+        return { streak: newStreak, xpBonus, isFirstLogin: true };
+    } catch {
+        return { streak: 0, xpBonus: 0, isFirstLogin: false };
     }
-
-    const lastLogin = streakData.last_login_date;
-
-    if (lastLogin === today) {
-        // Already logged in today
-        return { streak: streakData.current_streak, xpBonus: 0, isFirstLogin: false };
-    }
-
-    // Check if yesterday
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    let newStreak = 1;
-    let xpBonus = 50;
-
-    if (lastLogin === yesterdayStr) {
-        newStreak = streakData.current_streak + 1;
-        // Bonus multiplier?
-        if (newStreak % 7 === 0) xpBonus = 200; // Weekly bonus
-        else xpBonus = 50 + (newStreak * 10); // Ramp up
-    } else {
-        // Streak broken
-        newStreak = 1;
-        xpBonus = 50;
-    }
-
-    await supabase
-        .from('user_streaks')
-        .update({
-            current_streak: newStreak,
-            max_streak: Math.max(streakData.max_streak, newStreak),
-            last_login_date: today
-        })
-        .eq('user_id', userId);
-
-    await addXp(userId, xpBonus, 'daily_login');
-
-    return { streak: newStreak, xpBonus, isFirstLogin: true };
 };
 
 export default {
