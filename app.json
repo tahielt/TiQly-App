@@ -34,7 +34,13 @@
       "expo-font",
       "expo-audio",
       "expo-video",
-      "expo-notifications"
+      "expo-notifications",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "TiQly necesita acceso a la cámara para escanear códigos QR de entradas."
+        }
+      ]
     ]
   }
 }
