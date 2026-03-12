@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, StatusBar, SafeAreaView, ScrollView, Dimensions, TextInput, Animated, Keyboard } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { EVENT_CATEGORIES } from '../lib/mock-data';
+import { EVENT_CATEGORIES } from '../constants/eventCategories';
 import { eventService } from '../services/eventService';
 import { Ionicons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
@@ -67,7 +67,7 @@ const HomeScreen = () => {
         e.title?.toLowerCase().includes(query) ||
         e.location?.address?.toLowerCase().includes(query) ||
         e.location?.city?.toLowerCase().includes(query) ||
-        e.organizer?.name?.toLowerCase().includes(query) ||
+        e.organizerName?.toLowerCase().includes(query) ||
         e.description?.toLowerCase().includes(query)
       );
     }

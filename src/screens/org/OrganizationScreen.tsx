@@ -9,12 +9,14 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { organizationService } from '../../services/organizationService';
 import { OrganizationMember, Organization } from '../../types/organization';
 
 const OrganizationScreen = () => {
+    const navigation = useNavigation<any>();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [organizations, setOrganizations] = useState<OrganizationMember[]>([]);
@@ -64,7 +66,7 @@ const OrganizationScreen = () => {
                 style={styles.header}
             >
                 <Text style={styles.headerTitle}>Mi Organización</Text>
-                <TouchableOpacity style={styles.addButton}>
+                <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('CreateEvent')}>
                     <Ionicons name="add-circle" size={28} color="#00D9FF" />
                 </TouchableOpacity>
             </LinearGradient>
@@ -79,9 +81,39 @@ const OrganizationScreen = () => {
                     />
                 }
             >
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>🎟️ Panel de Eventos</Text>
+                    <TouchableOpacity
+                        style={styles.orgCard}
+                        onPress={() => navigation.navigate('MyEvents')}
+                    >
+                        <View style={styles.orgIcon}>
+                            <Ionicons name="calendar" size={24} color="#00D9FF" />
+                        </View>
+                        <View style={styles.orgInfo}>
+                            <Text style={styles.orgName}>Mis Eventos</Text>
+                            <Text style={styles.roleText}>Ver y gestionar mis eventos</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#666" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.orgCard}
+                        onPress={() => navigation.navigate('CreateEvent')}
+                    >
+                        <View style={styles.orgIcon}>
+                            <Ionicons name="add-circle" size={24} color="#00D9FF" />
+                        </View>
+                        <View style={styles.orgInfo}>
+                            <Text style={styles.orgName}>Crear Evento</Text>
+                            <Text style={styles.roleText}>Publicá un nuevo evento</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#666" />
+                    </TouchableOpacity>
+                </View>
                 {/* Pending Invitations */}
                 {pendingInvitations.length > 0 && (
-                    <View style={styles.section}>
+                <View style={styles.section}>
                         <Text style={styles.sectionTitle}>📩 Invitaciones Pendientes</Text>
                         {pendingInvitations.map((inv) => (
                             <View key={inv.id} style={styles.invitationCard}>
@@ -102,7 +134,7 @@ const OrganizationScreen = () => {
 
                 {/* My Organizations */}
                 {organizations.length > 0 ? (
-                    <View style={styles.section}>
+                <View style={styles.section}>
                         <Text style={styles.sectionTitle}>🏢 Mis Organizaciones</Text>
                         {organizations.map((member) => (
                             <TouchableOpacity key={member.id} style={styles.orgCard}>
@@ -275,3 +307,6 @@ const styles = StyleSheet.create({
 });
 
 export default OrganizationScreen;
+
+
+

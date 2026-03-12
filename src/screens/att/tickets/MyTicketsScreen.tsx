@@ -25,16 +25,16 @@ interface StoredTicket {
     userEmail: string;
     price: number;
     qrCode: string;
-    status: 'active' | 'used' | 'transferred' | 'for_sale';
+    status: 'active' | 'used' | 'transferred' | 'listed';
     purchaseDate: string;
 }
 
-type TicketFilter = 'all' | 'active' | 'for_sale' | 'used';
+type TicketFilter = 'all' | 'active' | 'listed' | 'used';
 
 const FILTER_TABS: { key: TicketFilter; label: string }[] = [
     { key: 'all', label: 'Todos' },
     { key: 'active', label: 'Activos' },
-    { key: 'for_sale', label: 'En Venta' },
+    { key: 'listed', label: 'En Venta' },
     { key: 'used', label: 'Usados' },
 ];
 
@@ -65,7 +65,7 @@ const MyTicketsScreen = () => {
                     userEmail: t.userEmail,
                     price: t.price,
                     qrCode: t.qrCode,
-                    status: t.status as 'active' | 'used' | 'transferred' | 'for_sale',
+                    status: t.status as 'active' | 'used' | 'transferred' | 'listed',
                     purchaseDate: t.purchaseDate.toISOString(),
                 })));
             }
@@ -89,7 +89,7 @@ const MyTicketsScreen = () => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'active': return '#00D9FF';
-            case 'for_sale': return '#00FF9D';
+            case 'listed': return '#00FF9D';
             case 'used': return '#888';
             case 'transferred': return '#FF6B6B';
             default: return '#fff';
@@ -99,7 +99,7 @@ const MyTicketsScreen = () => {
     const getStatusText = (status: string) => {
         switch (status) {
             case 'active': return 'ACTIVO';
-            case 'for_sale': return 'EN VENTA';
+            case 'listed': return 'EN VENTA';
             case 'used': return 'USADO';
             case 'transferred': return 'TRANSFERIDO';
             default: return status.toUpperCase();
@@ -107,7 +107,7 @@ const MyTicketsScreen = () => {
     };
 
     const renderTicketItem = ({ item }: { item: StoredTicket }) => {
-        const isForSale = item.status === 'for_sale';
+        const isForSale = item.status === 'listed';
 
         return (
             <TouchableOpacity
@@ -162,7 +162,7 @@ const MyTicketsScreen = () => {
             </Text>
             <TouchableOpacity
                 style={styles.browseButton}
-                onPress={() => navigation.navigate('Home')}
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
             >
                 <Text style={styles.browseButtonText}>Explorar Eventos</Text>
             </TouchableOpacity>
@@ -430,3 +430,4 @@ const styles = StyleSheet.create({
 });
 
 export default MyTicketsScreen;
+

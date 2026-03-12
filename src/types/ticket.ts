@@ -58,7 +58,8 @@ export interface PurchaseData {
   ticketTypeId: string;
   quantity: number;
   totalAmount: number;
-  platformFee: number; // 9% commission
+  platformFee: number; // 0% (no fee)
   finalAmount: number;
   paymentMethodId?: string; // For saved cards
 }
+

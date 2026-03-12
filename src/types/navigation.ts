@@ -32,6 +32,8 @@ export type RootStackParamList = {
   ResaleMarket: { eventId: string; eventTitle?: string };
   MyListings: undefined;
   MyTickets: undefined;
+  MyEvents: undefined;
+  OrgEventStats: { eventId: string; eventTitle: string };
   Settings: undefined;
   SwapScreen: undefined;
 };
@@ -41,7 +43,7 @@ export type OrgEventosStackParamList = {
   OrgEventosHome: undefined;
   OrgEventoDetalle: { eventId: string };
   OrgCrearEvento: undefined;
-  OrgEventStats: { eventId: string };
+  OrgEventStats: { eventId: string; eventTitle: string };
 };
 
 export type AttEventosStackParamList = {

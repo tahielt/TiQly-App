@@ -25,6 +25,7 @@ const RevenueCard: React.FC<RevenueCardProps> = ({
     feePercentage = 10
 }) => {
     const barWidth = useSharedValue(0);
+    const showFee = feePercentage > 0 && revenue.platformFee > 0;
 
     React.useEffect(() => {
         const netRatio = revenue.netProfit / revenue.grossRevenue;
@@ -95,16 +96,20 @@ const RevenueCard: React.FC<RevenueCardProps> = ({
                     </View>
 
                     <View style={styles.feeSection}>
-                        <View style={styles.feeRow}>
-                            <View style={styles.feeInfo}>
-                                <Ionicons name="remove-circle-outline" size={14} color={NEON_CYAN} />
-                                <Text style={styles.feeText}>TiQly Fee ({feePercentage}%)</Text>
-                            </View>
-                            <Text style={styles.feeValue}>
-                                -${revenue.platformFee.toLocaleString()}
-                            </Text>
-                        </View>
-                        <View style={styles.feeDivider} />
+                        {showFee && (
+                            <>
+                                <View style={styles.feeRow}>
+                                    <View style={styles.feeInfo}>
+                                        <Ionicons name="remove-circle-outline" size={14} color={NEON_CYAN} />
+                                        <Text style={styles.feeText}>TiQly Fee ({feePercentage}%)</Text>
+                                    </View>
+                                    <Text style={styles.feeValue}>
+                                        -${revenue.platformFee.toLocaleString()}
+                                    </Text>
+                                </View>
+                                <View style={styles.feeDivider} />
+                            </>
+                        )}
                         <View style={styles.feeRow}>
                             <View style={styles.feeInfo}>
                                 <Ionicons name="repeat" size={14} color="#888" />
@@ -266,3 +271,5 @@ const styles = StyleSheet.create({
 });
 
 export default RevenueCard;
+
+

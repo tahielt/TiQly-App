@@ -63,17 +63,17 @@ const ProfileScreen = ({ navigation }: any) => {
     try {
       // Count user's tickets
       const { count: ticketCount } = await supabase
-        .from('orders')
+        .from('tickets')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
       // Count unique events attended
       const { data: ordersData } = await supabase
-        .from('orders')
+        .from('tickets')
         .select('event_id')
         .eq('user_id', user.id);
 
-      const uniqueEvents = new Set(ordersData?.map(o => o.event_id) || []);
+      const uniqueEvents = new Set(ticketsData?.map(t => t.event_id) || []);
 
       setStats({
         tickets: ticketCount || 0,
@@ -383,35 +383,81 @@ const ProfileScreen = ({ navigation }: any) => {
             <Ionicons name="chevron-forward" size={20} color="#444" />
           </TouchableOpacity>
         </View>
+        {__DEV__ && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🧪 Dev Tools (Demo)</Text>
 
-        {/* 🧪 Developer Tools */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🧪 Dev Tools (Demo)</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                Alert.alert(
+                  'Limpiar Datos de Prueba',
+                  '¿Eliminar todos los tickets comprados y eventos creados? (Los eventos de demo se mantienen)',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Sí, limpiar',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await clearAllTestData();
+                        Alert.alert('✅ Listo', 'Todos los datos de prueba fueron eliminados. Recargá la app para ver los cambios.');
+                      }
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={[styles.iconBox, { backgroundColor: 'rgba(255,157,0,0.1)' }]}>
+                <Ionicons name="trash-outline" size={22} color="#FFA500" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuText}>Limpiar Datos de Prueba</Text>
+                <Text style={styles.menuSubtext}>Elimina tickets y eventos creados</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#444" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={async () => {
+                const { data: { user: currentUser } } = await supabase.auth.getUser();
+                if (!currentUser) {
+                  Alert.alert("Error", "Debes estar logueado en Supabase");
+                  return;
+                }
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              Alert.alert(
-                'Limpiar Datos de Prueba',
-                '¿Eliminar todos los tickets comprados y eventos creados? (Los eventos de demo se mantienen)',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Sí, limpiar',
-                    style: 'destructive',
-                    onPress: async () => {
-                      await clearAllTestData();
-                      Alert.alert('✅ Listo', 'Todos los datos de prueba fueron eliminados. Recargá la app para ver los cambios.');
-                    }
-                  },
-                ]
-              );
-            }}
-          >
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(255,157,0,0.1)' }]}>
-              <Ionicons name="trash-outline" size={22} color="#FFA500" />
-            </View>
-            <View style={{ flex: 1 }}>
+                Alert.alert(
+                  'Generar Eventos',
+                  '¿Crear eventos de prueba (Gotham, Boris, etc.) en la base de datos real?',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Sí, crear',
+                      onPress: async () => {
+                        try {
+                          await eventService.seedEvents(currentUser.id);
+                          Alert.alert('✅ Listo', 'Los eventos se han creado en Supabase. Recargá el mapa para verlos.');
+                        } catch (error) {
+                          console.error(error);
+                          Alert.alert('❌ Error', 'Hubo un problema al crear los eventos. Revisa la consola.');
+                        }
+                      }
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
+                <Ionicons name="cloud-upload-outline" size={22} color="#00D9FF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.menuText}>Sembrar Eventos de Prueba</Text>
+                <Text style={styles.menuSubtext}>Crea Gotham, Boris, Hash, etc.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#444" />
+            </TouchableOpacity>
+          </View>
+        )}
+<View style={{ flex: 1 }}>
               <Text style={styles.menuText}>Limpiar Datos de Prueba</Text>
               <Text style={styles.menuSubtext}>Elimina tickets y eventos creados</Text>
             </View>
@@ -1050,3 +1096,6 @@ const styles = StyleSheet.create({
 });
 
 export default ProfileScreen;
+
+
+

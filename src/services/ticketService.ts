@@ -5,8 +5,8 @@ import * as Crypto from 'expo-crypto';
 // Re-export types for convenience
 export type { TicketTransfer } from '../types/ticket';
 
-// Platform fee percentage (15% as configured in platform_config)
-export const PLATFORM_FEE_PERCENTAGE = 0.15;
+// Platform fee percentage (0% - no fees)
+export const PLATFORM_FEE_PERCENTAGE = 0;
 
 // Generate unique QR code for ticket
 const generateQRCode = async (ticketId: string, userId: string, eventId: string): Promise<string> => {
@@ -18,6 +18,11 @@ const generateQRCode = async (ticketId: string, userId: string, eventId: string)
   return hash;
 };
 
+const isMissingRelation = (error: any, name: string) => {
+  const message = (error?.message || '').toLowerCase();
+  return message.includes(name) && (message.includes('does not exist') || message.includes('relation'));
+};
+
 
 /**
  * Purchase a ticket and save to Supabase
@@ -27,34 +32,31 @@ export const purchaseTicket = async (
   userId: string,
   userName: string,
   userEmail: string,
-  eventData: { title: string; date: Date; location: string }
+  eventData: { title: string; date: Date; location: string; ticketTypeName?: string }
 ): Promise<Ticket> => {
-  const ticketId = Crypto.randomUUID();
-  const qrCode = await generateQRCode(ticketId, userId, purchaseData.eventId);
-
-  // Ticket data for Supabase insert (matching actual schema)
-  const ticketRow = {
-    id: ticketId,
-    event_id: purchaseData.eventId,
-    user_id: userId,
-    ticket_type_id: (purchaseData.ticketTypeId && purchaseData.ticketTypeId.length > 30) ? purchaseData.ticketTypeId : null,
-    qr_code: qrCode,
-    status: 'active',
-    price_paid: purchaseData.finalAmount, // Total amount including 15% service fee
-    original_owner_id: userId,
-    purchase_date: new Date().toISOString(),
-  };
-
-  const { data, error } = await supabase.from('tickets').insert(ticketRow).select().single();
+  const { data, error } = await supabase.functions.invoke('purchase-ticket', {
+    body: {
+      eventId: purchaseData.eventId,
+      ticketTypeId: purchaseData.ticketTypeId || null,
+      quantity: purchaseData.quantity || 1,
+    },
+  });
 
   if (error) {
     console.error('Error purchasing ticket:', error);
-    throw error;
+    throw new Error(error.message || 'No se pudo procesar la compra');
   }
 
-  // Return Ticket object with event data we already have
+  const ticketResponse = data?.ticket;
+  if (!ticketResponse?.id) {
+    throw new Error('Respuesta inválida del servidor');
+  }
+
+  const pricePaid = Number(ticketResponse.pricePaid ?? data?.pricing?.finalAmount ?? purchaseData.finalAmount ?? 0);
+  const purchaseDate = ticketResponse.purchaseDate ? new Date(ticketResponse.purchaseDate) : new Date();
+
   return {
-    id: data.id,
+    id: ticketResponse.id,
     eventId: purchaseData.eventId,
     eventTitle: eventData.title,
     eventDate: eventData.date,
@@ -62,27 +64,40 @@ export const purchaseTicket = async (
     userId: userId,
     userName: userName,
     userEmail: userEmail,
-    ticketTypeId: purchaseData.ticketTypeId || '',
-    ticketTypeName: 'General',
-    price: purchaseData.finalAmount, // Total paid including service fee
-    qrCode: data.qr_code,
+    ticketTypeId: ticketResponse.ticketTypeId || purchaseData.ticketTypeId || '',
+    ticketTypeName: ticketResponse.ticketTypeName || eventData.ticketTypeName || 'General',
+    price: pricePaid,
+    qrCode: ticketResponse.qrCode || '',
     status: 'active',
-    purchaseDate: new Date(data.purchase_date),
+    purchaseDate,
     transferHistory: [],
     originalOwnerId: userId,
-    createdAt: new Date(data.created_at),
-    updatedAt: new Date(data.created_at)
+    createdAt: ticketResponse.createdAt ? new Date(ticketResponse.createdAt) : purchaseDate,
+    updatedAt: ticketResponse.createdAt ? new Date(ticketResponse.createdAt) : purchaseDate
   };
 };
-
-
 /**
  * Get all tickets for a user from Supabase (with event data via JOIN)
  */
 export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(`
+  const selectWithType = `
+      *,
+      event:events!event_id (
+        title,
+        start_date,
+        address,
+        city
+      ),
+      owner:profiles!user_id (
+        name,
+        email
+      ),
+      ticket_type:ticket_types!ticket_type_id (
+        name
+      )
+    `;
+
+  const selectBasic = `
       *,
       event:events!event_id (
         title,
@@ -94,9 +109,24 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
         name,
         email
       )
-    `)
+    `;
+
+  let { data, error } = await supabase
+    .from('tickets')
+    .select(selectWithType)
     .eq('user_id', userId)
     .order('purchase_date', { ascending: false });
+
+  if (error && isMissingRelation(error, 'ticket_types')) {
+    const fallback = await supabase
+      .from('tickets')
+      .select(selectBasic)
+      .eq('user_id', userId)
+      .order('purchase_date', { ascending: false });
+
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error('Error fetching user tickets:', error);
@@ -113,7 +143,7 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
     userName: row.owner?.name || 'Usuario',
     userEmail: row.owner?.email || '',
     ticketTypeId: row.ticket_type_id || '',
-    ticketTypeName: 'General',
+    ticketTypeName: row.ticket_type?.name || 'General',
     price: row.price_paid,
     qrCode: row.qr_code,
     status: row.status,
@@ -135,9 +165,24 @@ export const getUserTicketHistory = async (userId: string): Promise<Ticket[]> =>
  * Get a single ticket by ID
  */
 export const getTicketById = async (ticketId: string): Promise<Ticket | null> => {
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(`
+  const selectWithType = `
+      *,
+      event:events!event_id (
+        title,
+        start_date,
+        address,
+        city
+      ),
+      owner:profiles!user_id (
+        name,
+        email
+      ),
+      ticket_type:ticket_types!ticket_type_id (
+        name
+      )
+    `;
+
+  const selectBasic = `
       *,
       event:events!event_id (
         title,
@@ -149,9 +194,24 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
         name,
         email
       )
-    `)
+    `;
+
+  let { data, error } = await supabase
+    .from('tickets')
+    .select(selectWithType)
     .eq('id', ticketId)
     .single();
+
+  if (error && isMissingRelation(error, 'ticket_types')) {
+    const fallback = await supabase
+      .from('tickets')
+      .select(selectBasic)
+      .eq('id', ticketId)
+      .single();
+
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error('Error fetching ticket:', error);
@@ -170,7 +230,7 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
     userName: data.owner?.name || 'Usuario',
     userEmail: data.owner?.email || '',
     ticketTypeId: data.ticket_type_id || '',
-    ticketTypeName: 'General',
+    ticketTypeName: data.ticket_type?.name || 'General',
     price: data.price_paid,
     qrCode: data.qr_code,
     status: data.status,
@@ -181,6 +241,67 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
     createdAt: new Date(data.created_at || data.purchase_date),
     updatedAt: new Date(data.created_at || data.purchase_date)
   };
+};
+
+
+export const getEventTicketSales = async (eventId: string) => {
+  const selectWithType = `
+      id,
+      price_paid,
+      purchase_date,
+      user_id,
+      ticket_type_id,
+      user:profiles!user_id (
+        name,
+        email
+      ),
+      ticket_type:ticket_types!ticket_type_id (
+        name
+      )
+    `;
+
+  const selectBasic = `
+      id,
+      price_paid,
+      purchase_date,
+      user_id,
+      ticket_type_id,
+      user:profiles!user_id (
+        name,
+        email
+      )
+    `;
+
+  let { data, error } = await supabase
+    .from('tickets')
+    .select(selectWithType)
+    .eq('event_id', eventId)
+    .order('purchase_date', { ascending: false });
+
+  if (error && isMissingRelation(error, 'ticket_types')) {
+    const fallback = await supabase
+      .from('tickets')
+      .select(selectBasic)
+      .eq('event_id', eventId)
+      .order('purchase_date', { ascending: false });
+
+    data = fallback.data;
+    error = fallback.error;
+  }
+
+  if (error) {
+    console.error('Error fetching event ticket sales:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    buyerName: row.user?.name || 'Usuario',
+    email: row.user?.email || '',
+    ticketType: row.ticket_type?.name || 'General',
+    price: row.price_paid || 0,
+    date: row.purchase_date || row.created_at,
+  }));
 };
 
 
@@ -203,25 +324,51 @@ export const initiateTicketTransfer = async (
 
   const eventInfo = (ticketData as any)?.event;
   const transferId = Crypto.randomUUID();
-  const transfer: TicketTransfer = {
+
+  const transferPayload = {
     id: transferId,
-    ticketId,
-    eventId: ticketData?.event_id,
-    eventTitle: eventInfo?.title || 'Evento',
-    eventDate: eventInfo?.start_date ? new Date(eventInfo.start_date) : undefined,
-    fromUserId,
-    fromUserName,
-    toUserId: 'pending_user',
-    toUserName: 'TBD',
-    toUserEmail,
+    ticket_id: ticketId,
+    event_id: ticketData?.event_id,
+    event_title: eventInfo?.title || 'Evento',
+    event_date: eventInfo?.start_date || null,
+    from_user_id: fromUserId,
+    from_user_name: fromUserName,
+    to_user_email: toUserEmail,
     status: 'pending',
-    requestDate: new Date(),
-    message
+    message: message || null,
+    request_date: new Date().toISOString(),
   };
 
-  // TODO: Save transfer to database (ticket_transfers table)
+  const { data: transferRow, error: transferError } = await supabase
+    .from('ticket_transfers')
+    .insert(transferPayload)
+    .select()
+    .single();
 
-  return transfer;
+  if (transferError) {
+    console.error('Error creating transfer:', transferError);
+    if (isMissingRelation(transferError, 'ticket_transfers')) {
+      throw new Error('Transferencias no disponibles por ahora.');
+    }
+    throw transferError;
+  }
+
+  return {
+    id: transferRow?.id || transferId,
+    ticketId,
+    eventId: transferRow?.event_id || ticketData?.event_id,
+    eventTitle: transferRow?.event_title || eventInfo?.title || 'Evento',
+    eventDate: transferRow?.event_date ? new Date(transferRow.event_date) : undefined,
+    fromUserId,
+    fromUserName,
+    toUserId: transferRow?.to_user_id || 'pending_user',
+    toUserName: transferRow?.to_user_name || 'TBD',
+    toUserEmail,
+    status: transferRow?.status || 'pending',
+    requestDate: transferRow?.request_date ? new Date(transferRow.request_date) : new Date(),
+    responseDate: transferRow?.response_date ? new Date(transferRow.response_date) : undefined,
+    message
+  };
 };
 
 
@@ -251,20 +398,78 @@ export const acceptTicketTransfer = async (
     console.error('Error accepting transfer:', error);
     throw error;
   }
+
+  const { error: transferError } = await supabase
+    .from('ticket_transfers')
+    .update({
+      status: 'accepted',
+      to_user_id: newUserId,
+      to_user_name: newUserName,
+      to_user_email: newUserEmail,
+      response_date: new Date().toISOString(),
+    })
+    .eq('id', transferId);
+
+  if (transferError && !isMissingRelation(transferError, 'ticket_transfers')) {
+    console.error('Error updating transfer:', transferError);
+  }
 };
 
 
 /**
- * Reject ticket transfer (placeholder)
+ * Reject ticket transfer
  */
-export const rejectTicketTransfer = async (transferId: string): Promise<void> => { };
+export const rejectTicketTransfer = async (transferId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('ticket_transfers')
+    .update({
+      status: 'rejected',
+      response_date: new Date().toISOString(),
+    })
+    .eq('id', transferId);
+
+  if (error && !isMissingRelation(error, 'ticket_transfers')) {
+    console.error('Error rejecting transfer:', error);
+    throw error;
+  }
+};
 
 
 /**
- * Get pending transfers for a user (placeholder)
+ * Get pending transfers for a user
  */
 export const getPendingTransfers = async (userEmail: string): Promise<TicketTransfer[]> => {
-  return [];
+  const { data, error } = await supabase
+    .from('ticket_transfers')
+    .select('*')
+    .eq('to_user_email', userEmail)
+    .eq('status', 'pending')
+    .order('request_date', { ascending: false });
+
+  if (error) {
+    if (isMissingRelation(error, 'ticket_transfers')) {
+      return [];
+    }
+    console.error('Error fetching transfers:', error);
+    return [];
+  }
+
+  return (data || []).map((row: any) => ({
+    id: row.id,
+    ticketId: row.ticket_id,
+    eventId: row.event_id,
+    eventTitle: row.event_title || 'Evento',
+    eventDate: row.event_date ? new Date(row.event_date) : undefined,
+    fromUserId: row.from_user_id,
+    fromUserName: row.from_user_name || 'Usuario',
+    toUserId: row.to_user_id || 'pending_user',
+    toUserName: row.to_user_name || 'TBD',
+    toUserEmail: row.to_user_email,
+    status: row.status || 'pending',
+    requestDate: row.request_date ? new Date(row.request_date) : new Date(),
+    responseDate: row.response_date ? new Date(row.response_date) : undefined,
+    message: row.message || undefined,
+  }));
 };
 
 
@@ -629,6 +834,7 @@ export default {
   purchaseTicket,
   getUserTickets,
   getTicketById,
+  getEventTicketSales,
   initiateTicketTransfer,
   acceptTicketTransfer,
   rejectTicketTransfer,
@@ -645,3 +851,6 @@ export default {
   RESALE_FEE_PERCENTAGE,
   MAX_MARKUP_PERCENTAGE,
 };
+
+
+

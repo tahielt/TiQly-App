@@ -1,13 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { User } from '../types/auth';
 
 const AUTH_KEY = '@TiqlyApp:auth';
+const AUTH_SECURE_KEY = '@TiqlyApp:auth_secure';
 
 export const StorageService = {
   // Guardar datos de autenticación
   async saveAuthData(user: User) {
     try {
-      await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(user));
+      const { token, ...safeUser } = user;
+      const payload = JSON.stringify(safeUser);
+      let storedSecurely = false;
+
+      try {
+        await SecureStore.setItemAsync(AUTH_SECURE_KEY, payload);
+        storedSecurely = true;
+      } catch (secureError) {
+        console.error('Error al guardar datos en SecureStore:', secureError);
+      }
+
+      if (!storedSecurely) {
+        await AsyncStorage.setItem(AUTH_KEY, payload);
+      }
+
       return true;
     } catch (error) {
       console.error('Error al guardar datos de autenticación:', error);
@@ -18,6 +34,9 @@ export const StorageService = {
   // Obtener datos de autenticación
   async getAuthData(): Promise<User | null> {
     try {
+      const secureValue = await SecureStore.getItemAsync(AUTH_SECURE_KEY);
+      if (secureValue) return JSON.parse(secureValue);
+
       const userString = await AsyncStorage.getItem(AUTH_KEY);
       return userString ? JSON.parse(userString) : null;
     } catch (error) {
@@ -25,7 +44,7 @@ export const StorageService = {
       return null;
     }
   },
-  
+
   // FUNCIÓN DE EJEMPLO QUE REQUIERE CORRECCIÓN DE TIPADO
   // Si tienes una función similar que llama a multiGet, aplica el spread operator.
   async loadMultipleItems(keys: string[]) {
@@ -43,6 +62,7 @@ export const StorageService = {
   // Eliminar datos de autenticación
   async removeAuthData() {
     try {
+      await SecureStore.deleteItemAsync(AUTH_SECURE_KEY);
       await AsyncStorage.removeItem(AUTH_KEY);
       return true;
     } catch (error) {
@@ -54,6 +74,7 @@ export const StorageService = {
   // Limpiar todo el almacenamiento
   async clearAll() {
     try {
+      await SecureStore.deleteItemAsync(AUTH_SECURE_KEY);
       await AsyncStorage.clear();
       return true;
     } catch (error) {

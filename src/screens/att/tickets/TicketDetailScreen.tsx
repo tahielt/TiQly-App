@@ -7,14 +7,18 @@ import {
   TouchableOpacity,
   Alert,
   Share,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal,
+  TextInput
 } from 'react-native';
-import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../store/store';
 import QRCode from 'react-native-qrcode-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { Ticket } from '../../../types/ticket';
 import { getTicketById, initiateTicketTransfer } from '../../../services/ticketService';
+import * as Haptics from 'expo-haptics';
 import { colors, spacing, typography } from '../../../theme';
 
 type RouteParams = {
@@ -25,13 +29,14 @@ type RouteParams = {
 
 const TicketDetailScreen = () => {
   const route = useRoute<RouteProp<RouteParams, 'params'>>();
-  const navigation = useNavigation();
   const { user } = useSelector((state: RootState) => state.auth);
 
   const { ticketId } = route.params;
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [loading, setLoading] = useState(true);
   const [transferring, setTransferring] = useState(false);
+  const [transferModalVisible, setTransferModalVisible] = useState(false);
+  const [transferEmail, setTransferEmail] = useState('');
 
   useEffect(() => {
     loadTicket();
@@ -51,44 +56,44 @@ const TicketDetailScreen = () => {
 
   const handleTransfer = () => {
     if (!ticket || !user) return;
+    Haptics.selectionAsync();
+    setTransferModalVisible(true);
+  };
 
-    Alert.prompt(
-      'Transferir Entrada',
-      'Ingresa el email del destinatario:',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Enviar',
-          onPress: async (email: string | undefined) => {
-            if (!email || !email.includes('@')) {
-              Alert.alert('Error', 'Email inválido');
-              return;
-            }
+  const submitTransfer = async () => {
+    if (!ticket || !user) return;
 
-            setTransferring(true);
-            try {
-              await initiateTicketTransfer(
-                ticket.id,
-                user.id,
-                user.name,
-                email
-              );
+    const email = transferEmail.trim();
+    if (!email || !email.includes('@')) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', 'Email inválido');
+      return;
+    }
 
-              Alert.alert(
-                'Transferencia Enviada',
-                `Se ha enviado la solicitud de transferencia a ${email}. El destinatario debe aceptarla para completar la transferencia.`
-              );
-            } catch (error) {
-              console.error('Error transferring ticket:', error);
-              Alert.alert('Error', 'No se pudo transferir el ticket');
-            } finally {
-              setTransferring(false);
-            }
-          }
-        }
-      ],
-      'plain-text'
-    );
+    setTransferring(true);
+    try {
+      await initiateTicketTransfer(
+        ticket.id,
+        user.id,
+        user.name,
+        email
+      );
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTransferModalVisible(false);
+      setTransferEmail('');
+
+      Alert.alert(
+        'Transferencia Enviada',
+        `Se ha enviado la solicitud de transferencia a ${email}. El destinatario debe aceptarla para completar la transferencia.`
+      );
+    } catch (error: any) {
+      console.error('Error transferring ticket:', error);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', error?.message || 'No se pudo transferir el ticket');
+    } finally {
+      setTransferring(false);
+    }
   };
 
   const handleShare = async () => {
@@ -267,6 +272,49 @@ const TicketDetailScreen = () => {
         </View>
       )}
 
+      <Modal
+        visible={transferModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTransferModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Transferir Entrada</Text>
+              <TouchableOpacity onPress={() => setTransferModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>Ingresá el email del destinatario</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="email@ejemplo.com"
+              placeholderTextColor={colors.textSecondary}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={transferEmail}
+              onChangeText={setTransferEmail}
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setTransferModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirm}
+                onPress={submitTransfer}
+                disabled={transferring}
+              >
+                {transferring ? (
+                  <ActivityIndicator color={colors.onPrimary} />
+                ) : (
+                  <Text style={styles.modalConfirmText}>Enviar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -417,6 +465,70 @@ const styles = StyleSheet.create({
     ...typography.body2,
     color: colors.textSecondary,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.75)',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    padding: spacing.large,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.small,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.text,
+  },
+  modalSubtitle: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    marginBottom: spacing.medium,
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: spacing.small,
+    color: colors.text,
+    marginBottom: spacing.medium,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.small,
+  },
+  modalCancel: {
+    flex: 1,
+    padding: spacing.small,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    ...typography.button,
+    color: colors.textSecondary,
+  },
+  modalConfirm: {
+    flex: 1,
+    padding: spacing.small,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    ...typography.button,
+    color: colors.onPrimary,
   },
 });
 

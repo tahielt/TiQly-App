@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
     View,
     Text,
@@ -7,20 +7,13 @@ import {
     StatusBar,
     ScrollView,
     TouchableOpacity,
-    FlatList,
+    ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { getEventTicketSales, PLATFORM_FEE_PERCENTAGE } from '../../../services/ticketService';
 
-// Mock data for demonstration
-const MOCK_TICKET_SALES = [
-    { id: '1', buyerName: 'Juan Pérez', email: 'juan@mail.com', ticketType: 'Early Bird', price: 15000, date: '2025-01-02T20:30:00' },
-    { id: '2', buyerName: 'María García', email: 'maria@mail.com', ticketType: 'VIP', price: 35000, date: '2025-01-02T21:15:00' },
-    { id: '3', buyerName: 'Carlos López', email: 'carlos@mail.com', ticketType: 'General', price: 20000, date: '2025-01-03T14:00:00' },
-    { id: '4', buyerName: 'Ana Fernández', email: 'ana@mail.com', ticketType: 'Early Bird', price: 15000, date: '2025-01-03T15:30:00' },
-    { id: '5', buyerName: 'Luis Martínez', email: 'luis@mail.com', ticketType: 'General', price: 20000, date: '2025-01-03T16:45:00' },
-];
-
+// Types for route params
 type RouteParams = {
     EventStats: {
         eventId: string;
@@ -33,36 +26,60 @@ const EventStatsScreen = () => {
     const route = useRoute<RouteProp<RouteParams, 'EventStats'>>();
     const { eventId, eventTitle } = route.params || { eventId: '', eventTitle: 'Evento' };
 
-    const [activeTab, setActiveTab] = useState<'ventas' | 'lotes'>('ventas');
+    const [loading, setLoading] = useState(true);
+    const [sales, setSales] = useState<any[]>([]);
 
-    // Calculate stats from mock data
-    const totalTickets = MOCK_TICKET_SALES.length;
-    const totalRevenue = MOCK_TICKET_SALES.reduce((sum, t) => sum + t.price, 0);
-    const ticketsByType = MOCK_TICKET_SALES.reduce((acc, t) => {
-        acc[t.ticketType] = (acc[t.ticketType] || 0) + 1;
-        return acc;
-    }, {} as Record<string, number>);
+    useEffect(() => {
+        loadSales();
+    }, [eventId]);
 
-    const renderSaleItem = ({ item }: { item: typeof MOCK_TICKET_SALES[0] }) => (
+    const loadSales = async () => {
+        if (!eventId) return;
+        setLoading(true);
+        try {
+            const data = await getEventTicketSales(eventId);
+            setSales(data);
+        } catch (error) {
+            console.error('Error loading event sales:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const totalTickets = sales.length;
+    const totalRevenue = sales.reduce((sum, t) => sum + (t.price || 0), 0);
+    const showPlatformFee = PLATFORM_FEE_PERCENTAGE > 0;
+    const baseRevenue = showPlatformFee ? totalRevenue / (1 + PLATFORM_FEE_PERCENTAGE) : totalRevenue;
+    const platformFee = showPlatformFee ? totalRevenue - baseRevenue : 0;
+
+    const ticketsByType = useMemo(() => {
+        return sales.reduce((acc, t) => {
+            const type = t.ticketType || 'General';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+    }, [sales]);
+
+    const renderSaleItem = ({ item }: { item: any }) => (
         <View style={styles.saleCard}>
             <View style={styles.saleTop}>
                 <View style={styles.buyerInfo}>
                     <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{item.buyerName.charAt(0)}</Text>
+                        <Text style={styles.avatarText}>{item.buyerName?.charAt(0) || 'U'}</Text>
                     </View>
                     <View>
-                        <Text style={styles.buyerName}>{item.buyerName}</Text>
-                        <Text style={styles.buyerEmail}>{item.email}</Text>
+                        <Text style={styles.buyerName}>{item.buyerName || 'Usuario'}</Text>
+                        <Text style={styles.buyerEmail}>{item.email || 'sin email'}</Text>
                     </View>
                 </View>
-                <Text style={styles.salePrice}>${item.price.toLocaleString()}</Text>
+                <Text style={styles.salePrice}>${(item.price || 0).toLocaleString()}</Text>
             </View>
             <View style={styles.saleBottom}>
                 <View style={styles.saleBadge}>
-                    <Text style={styles.saleBadgeText}>{item.ticketType}</Text>
+                    <Text style={styles.saleBadgeText}>{item.ticketType || 'General'}</Text>
                 </View>
                 <Text style={styles.saleDate}>
-                    {new Date(item.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {item.date ? new Date(item.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
                 </Text>
             </View>
         </View>
@@ -84,68 +101,87 @@ const EventStatsScreen = () => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView>
-                {/* Stats Cards */}
-                <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
-                        <Ionicons name="ticket" size={28} color="#00D9FF" />
-                        <Text style={styles.statValue}>{totalTickets}</Text>
-                        <Text style={styles.statLabel}>Tickets Vendidos</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                        <Ionicons name="cash" size={28} color="#00FF9D" />
-                        <Text style={styles.statValue}>${(totalRevenue / 1000).toFixed(0)}k</Text>
-                        <Text style={styles.statLabel}>Recaudación Total</Text>
-                    </View>
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color="#00D9FF" />
+                    <Text style={styles.loadingText}>Cargando ventas...</Text>
                 </View>
-
-                {/* Revenue Breakdown */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>💰 Tu Ganancia Neta</Text>
-                    <View style={styles.revenueCard}>
-                        <View style={styles.revenueRow}>
-                            <Text style={styles.revenueLabel}>Total Vendido</Text>
-                            <Text style={styles.revenueValue}>${totalRevenue.toLocaleString()}</Text>
+            ) : (
+                <ScrollView>
+                    {/* Stats Cards */}
+                    <View style={styles.statsGrid}>
+                        <View style={styles.statCard}>
+                            <Ionicons name="ticket" size={28} color="#00D9FF" />
+                            <Text style={styles.statValue}>{totalTickets}</Text>
+                            <Text style={styles.statLabel}>Tickets Vendidos</Text>
                         </View>
-                        <View style={styles.revenueDivider} />
-                        <View style={styles.revenueRow}>
-                            <Text style={styles.revenueLabel}>Comisión TiQly (15%)</Text>
-                            <Text style={styles.revenueValueSmall}>Pagado por compradores</Text>
-                        </View>
-                        <View style={styles.revenueDivider} />
-                        <View style={styles.revenueRow}>
-                            <Text style={styles.revenueLabelBig}>Recibirás</Text>
-                            <Text style={styles.revenueValueBig}>${totalRevenue.toLocaleString()}</Text>
+                        <View style={styles.statCard}>
+                            <Ionicons name="cash" size={28} color="#00FF9D" />
+                            <Text style={styles.statValue}>${(totalRevenue / 1000).toFixed(0)}k</Text>
+                            <Text style={styles.statLabel}>Recaudación Total</Text>
                         </View>
                     </View>
-                </View>
 
-                {/* Lotes Breakdown */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>🎫 Por Tipo de Entrada</Text>
-                    {Object.entries(ticketsByType).map(([type, count]) => (
-                        <View key={type} style={styles.loteRow}>
-                            <View style={styles.loteInfo}>
-                                <View style={styles.loteIndicator} />
-                                <Text style={styles.loteName}>{type}</Text>
+                    {/* Revenue Breakdown */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>💰 Tu Ganancia Neta</Text>
+                        <View style={styles.revenueCard}>
+                            <View style={styles.revenueRow}>
+                                <Text style={styles.revenueLabel}>Total Vendido</Text>
+                                <Text style={styles.revenueValue}>${totalRevenue.toLocaleString()}</Text>
                             </View>
-                            <Text style={styles.loteCount}>{count} vendidos</Text>
+                            {showPlatformFee && (
+                                <>
+                                    <View style={styles.revenueDivider} />
+                                    <View style={styles.revenueRow}>
+                                        <Text style={styles.revenueLabel}>Comisión TiQly ({Math.round(PLATFORM_FEE_PERCENTAGE * 100)}%)</Text>
+                                        <Text style={styles.revenueValueSmall}>-${platformFee.toLocaleString()}</Text>
+                                    </View>
+                                </>
+                            )}
+                            <View style={styles.revenueDivider} />
+                            <View style={styles.revenueRow}>
+                                <Text style={styles.revenueLabelBig}>Recibirás</Text>
+                                <Text style={styles.revenueValueBig}>${Math.round(baseRevenue).toLocaleString()}</Text>
+                            </View>
                         </View>
-                    ))}
-                </View>
+                    </View>
 
-                {/* Sales List */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>📋 Últimas Ventas</Text>
-                    {MOCK_TICKET_SALES.map((sale) => (
-                        <View key={sale.id}>
-                            {renderSaleItem({ item: sale })}
-                        </View>
-                    ))}
-                </View>
+                    {/* Lotes Breakdown */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>🎫 Por Tipo de Entrada</Text>
+                        {Object.entries(ticketsByType).length === 0 ? (
+                            <Text style={styles.emptyText}>Aún no hay ventas para este evento.</Text>
+                        ) : (
+                            Object.entries(ticketsByType).map(([type, count]) => (
+                                <View key={type} style={styles.loteRow}>
+                                    <View style={styles.loteInfo}>
+                                        <View style={styles.loteIndicator} />
+                                        <Text style={styles.loteName}>{type}</Text>
+                                    </View>
+                                    <Text style={styles.loteCount}>{count} vendidos</Text>
+                                </View>
+                            ))
+                        )}
+                    </View>
 
-                <View style={{ height: 40 }} />
-            </ScrollView>
+                    {/* Sales List */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>📋 Últimas Ventas</Text>
+                        {sales.length === 0 ? (
+                            <Text style={styles.emptyText}>Sin ventas registradas todavía.</Text>
+                        ) : (
+                            sales.map((sale) => (
+                                <View key={sale.id}>
+                                    {renderSaleItem({ item: sale })}
+                                </View>
+                            ))
+                        )}
+                    </View>
+
+                    <View style={{ height: 40 }} />
+                </ScrollView>
+            )}
         </SafeAreaView>
     );
 };
@@ -181,6 +217,16 @@ const styles = StyleSheet.create({
         color: '#666',
         fontSize: 12,
         marginTop: 2,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
+    },
+    loadingText: {
+        color: '#666',
+        fontSize: 14,
     },
     statsGrid: {
         flexDirection: 'row',
@@ -359,6 +405,12 @@ const styles = StyleSheet.create({
         color: '#555',
         fontSize: 11,
     },
+    emptyText: {
+        color: '#666',
+        fontSize: 13,
+    },
 });
 
 export default EventStatsScreen;
+
+

@@ -196,7 +196,7 @@ const OrganizerDashboard = () => {
             </View>
 
             <View style={styles.revenueSection}>
-                <RevenueCard revenue={revenue} feePercentage={10} />
+                <RevenueCard revenue={revenue} feePercentage={0} />
             </View>
             <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
@@ -392,3 +392,4 @@ const styles = StyleSheet.create({
 });
 
 export default OrganizerDashboard;
+

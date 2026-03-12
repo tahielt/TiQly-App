@@ -108,7 +108,7 @@ const TransferInboxScreen = () => {
                     style: 'destructive',
                     onPress: async () => {
                         setProcessingId(transfer.id);
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
                         try {
                             await rejectTicketTransfer(transfer.id);

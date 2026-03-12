@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { EVENT_CATEGORIES } from '../../lib/mock-data';
+import { EVENT_CATEGORIES } from '../../constants/eventCategories';
 import { eventService } from '../../services/eventService';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import MapView, { MapViewHandle } from '../../components/MapView';

@@ -11,18 +11,18 @@ import {
     Alert,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState, AppDispatch } from '../../../store/store';
-import { setActiveRole } from '../../../features/auth/authSlice';
-import { getEvents } from '../../../lib/mock-data';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../store/store';
+import { eventService } from '../../../services/eventService';
+import { getEventTicketSales } from '../../../services/ticketService';
 import { Ionicons } from '@expo/vector-icons';
 
 const MyEventsScreen = () => {
     const navigation = useNavigation<any>();
-    const isFocused = useIsFocused();
-    const dispatch = useDispatch<AppDispatch>();
+    const isFocused = useIsFocused();
     const { user } = useSelector((state: RootState) => state.auth);
     const [events, setEvents] = useState<any[]>([]);
+    const [statsByEvent, setStatsByEvent] = useState<Record<string, { sold: number; revenue: number }>>({});
 
     useEffect(() => {
         if (isFocused) {
@@ -31,16 +31,39 @@ const MyEventsScreen = () => {
     }, [isFocused]);
 
     const loadMyEvents = async () => {
-        const allEvents = await getEvents();
-        // Filter to only show events created by this user (mock: match organizerId)
-        const myEvents = allEvents.filter(e => e.organizerId === 'org_1'); // Mock: use fixed org ID
+        if (!user?.id) {
+            setEvents([]);
+            return;
+        }
+
+        const myEvents = await eventService.getEventsByOrganizer(user.id, true);
         setEvents(myEvents);
+        loadEventStats(myEvents);
     };
+    const loadEventStats = async (items: any[]) => {
+        if (!items || items.length === 0) {
+            setStatsByEvent({});
+            return;
+        }
 
-    const handleSwitchToClient = () => {
-        dispatch(setActiveRole('attendee'));
+        const results = await Promise.all(items.map(async (event) => {
+            try {
+                const sales = await getEventTicketSales(event.id);
+                const sold = sales.length;
+                const revenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+                return { id: event.id, sold, revenue };
+            } catch (error) {
+                console.error('Error loading stats for event:', event.id, error);
+                return { id: event.id, sold: 0, revenue: 0 };
+            }
+        }));
+
+        const next: Record<string, { sold: number; revenue: number }> = {};
+        results.forEach((entry) => {
+            next[entry.id] = { sold: entry.sold, revenue: entry.revenue };
+        });
+        setStatsByEvent(next);
     };
-
     const handleViewTickets = (eventId: string, eventTitle: string) => {
         navigation.navigate('OrgEventStats', { eventId, eventTitle });
     };
@@ -56,18 +79,18 @@ const MyEventsScreen = () => {
             {/* Stats Overlay */}
             <View style={styles.statsOverlay}>
                 <View style={styles.statItem}>
-                    <Text style={styles.statValue}>23</Text>
+                    <Text style={styles.statValue}>{statsByEvent[item.id]?.sold ?? 0}</Text>
                     <Text style={styles.statLabel}>Vendidos</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                    <Text style={styles.statValue}>$575k</Text>
+                    <Text style={styles.statValue}>{`$${(statsByEvent[item.id]?.revenue ?? 0).toLocaleString()}`}</Text>
                     <Text style={styles.statLabel}>Recaudado</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statLabel}>Activo</Text>
+                    <View style={[styles.statusDot, item.status === 'draft' && { backgroundColor: '#FFB020' }]} />
+                    <Text style={styles.statLabel}>{item.status === 'draft' ? 'Borrador' : 'Activo'}</Text>
                 </View>
             </View>
 
@@ -384,3 +407,17 @@ const styles = StyleSheet.create({
 });
 
 export default MyEventsScreen;
+
+
+
+
+
+
+
+
+
+
+
+
+
+

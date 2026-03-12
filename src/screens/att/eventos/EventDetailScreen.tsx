@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Dimensions, StatusBar, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,14 +6,37 @@ import { eventService } from '../../../services/eventService';
 import { purchaseTicket } from '../../../services/ticketService';
 import { notifyTicketPurchase } from '../../../services/notificationService';
 import { supabase } from '../../../lib/supabase';
-import { Event } from '../../../types/event';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useAudioPlayer } from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import TicketSelector from '../../../components/TicketSelector';
 
-const { height, width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
+
+const ticketPolicies = [
+    {
+        title: 'Sin descuentos ni cupones',
+        description: 'El precio es fijo y visible antes de pagar.',
+        icon: 'pricetag'
+    },
+    {
+        title: 'QR único por ingreso',
+        description: 'Cada ticket se valida una sola vez en puerta.',
+        icon: 'qr-code'
+    },
+    {
+        title: 'Transferencias en TiQly',
+        description: 'Si el evento lo permite, podés transferir tu entrada desde la app.',
+        icon: 'swap-horizontal'
+    },
+    {
+        title: 'Cambios o cancelaciones',
+        description: 'La resolución la define el organizador; te avisamos por la app.',
+        icon: 'alert-circle'
+    }
+];
 
 const EventDetailScreen = () => {
     const navigation = useNavigation<any>();
@@ -22,6 +45,26 @@ const EventDetailScreen = () => {
     const [event, setEvent] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+
+    const tiers = useMemo(() => {
+        if (!event) return [];
+        if (event.ticketTypes && event.ticketTypes.length > 0) {
+            return event.ticketTypes.map((tier: any) => ({
+                id: tier.id,
+                name: tier.name || 'General',
+                price: tier.price || 0,
+                available: tier.available ?? tier.quantity
+            }));
+        }
+        if (event.price !== undefined) {
+            return [{
+                id: 'general',
+                name: 'General',
+                price: event.price || 0
+            }];
+        }
+        return [];
+    }, [event]);
 
     // Ticket Selector State
     const [isSelectorVisible, setIsSelectorVisible] = useState(false);
@@ -52,9 +95,8 @@ const EventDetailScreen = () => {
             setLoading(false);
         }
     };
-
     const toggleAudioPreview = async () => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.selectionAsync();
 
         if (isPlayingAudio) {
             audioPlayer.pause();
@@ -62,6 +104,24 @@ const EventDetailScreen = () => {
         } else {
             audioPlayer.play();
             setIsPlayingAudio(true);
+        }
+    };
+
+    
+    const safeOpenUrl = async (url?: string) => {
+        if (!url) return;
+        const trimmed = url.trim();
+        const allowedPrefixes = ['https://', 'http://', 'spotify:'];
+        if (!allowedPrefixes.some(prefix => trimmed.startsWith(prefix))) {
+            Alert.alert('Link inválido', 'El enlace no es compatible.');
+            return;
+        }
+
+        const supported = await Linking.canOpenURL(trimmed);
+        if (supported) {
+            Linking.openURL(trimmed);
+        } else {
+            Alert.alert('No se pudo abrir el enlace');
         }
     };
 
@@ -77,27 +137,30 @@ const EventDetailScreen = () => {
             return;
         }
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setPurchasing(true);
         try {
             // Get current authenticated user
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) {
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                 Alert.alert('Error', 'Debes iniciar sesión para comprar.');
                 setPurchasing(false);
                 return;
             }
 
+            const ticketTypeId = tier.id && tier.id !== 'general' ? tier.id : '';
+
             // Create purchase data using tier price
             const basePrice = tier.price;
-            const platformFee = basePrice * 0.15; // 15% fee
+            const platformFee = 0;
             const purchaseData = {
                 eventId: event.id,
-                ticketTypeId: tier.id || '',
+                ticketTypeId,
                 quantity: 1,
                 totalAmount: basePrice,
                 platformFee: platformFee,
-                finalAmount: basePrice + platformFee
+                finalAmount: basePrice
             };
 
             // Call real ticketService (Supabase)
@@ -109,7 +172,8 @@ const EventDetailScreen = () => {
                 {
                     title: event.title,
                     date: new Date(event.startDate),
-                    location: event.location?.address || 'Sin dirección'
+                    location: event.location?.address || 'Sin dirección',
+                    ticketTypeName: tier.name || 'General'
                 }
             );
 
@@ -126,6 +190,7 @@ const EventDetailScreen = () => {
             );
         } catch (error) {
             console.error('Purchase error:', error);
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setPurchasing(false);
             Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
         }
@@ -176,6 +241,8 @@ const EventDetailScreen = () => {
                     visible={isSelectorVisible}
                     onClose={() => setIsSelectorVisible(false)}
                     onSelect={handleTierSelection}
+                    tiers={tiers}
+                    feePercentage={0}
                 />
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -234,6 +301,29 @@ const EventDetailScreen = () => {
                         <Text style={styles.sectionTitle}>Organizador</Text>
                         <Text style={styles.organizer}>{event.organizerName}</Text>
 
+                        <View style={styles.divider} />
+
+                        <Text style={styles.sectionTitle}>Políticas de tickets</Text>
+                        <BlurView intensity={18} tint="dark" style={styles.policiesCard}>
+                            <LinearGradient
+                                colors={['rgba(0,217,255,0.08)', 'rgba(0,0,0,0.35)']}
+                                style={StyleSheet.absoluteFill}
+                            />
+                            <View style={styles.policiesContent}>
+                                {ticketPolicies.map((policy) => (
+                                    <View key={policy.title} style={styles.policyRow}>
+                                        <View style={styles.policyIcon}>
+                                            <Ionicons name={policy.icon as any} size={16} color="#00D9FF" />
+                                        </View>
+                                        <View style={styles.policyText}>
+                                            <Text style={styles.policyTitle}>{policy.title}</Text>
+                                            <Text style={styles.policyDescription}>{policy.description}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        </BlurView>
+
                         {/* 🎵 Spotify Section */}
                         {(event.spotifyArtist || event.spotifyPlaylist) && (
                             <>
@@ -247,7 +337,7 @@ const EventDetailScreen = () => {
                                     {event.spotifyArtist && (
                                         <TouchableOpacity
                                             style={styles.spotifyLink}
-                                            onPress={() => Linking.openURL(event.spotifyArtist!)}
+                                            onPress={() => safeOpenUrl(event.spotifyArtist)}
                                         >
                                             <View style={styles.spotifyIconCircle}>
                                                 <Ionicons name="person" size={16} color="#1DB954" />
@@ -263,7 +353,7 @@ const EventDetailScreen = () => {
                                     {event.spotifyPlaylist && (
                                         <TouchableOpacity
                                             style={styles.spotifyLink}
-                                            onPress={() => Linking.openURL(event.spotifyPlaylist!)}
+                                            onPress={() => safeOpenUrl(event.spotifyPlaylist)}
                                         >
                                             <View style={styles.spotifyIconCircle}>
                                                 <Ionicons name="list" size={16} color="#1DB954" />
@@ -530,6 +620,48 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginTop: 2,
     },
+    policiesCard: {
+        borderRadius: 18,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        marginBottom: 16,
+    },
+    policiesContent: {
+        padding: 16,
+        gap: 12,
+    },
+    policyRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+    },
+    policyIcon: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: 'rgba(0,217,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(0,217,255,0.35)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 2,
+    },
+    policyText: {
+        flex: 1,
+    },
+    policyTitle: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    policyDescription: {
+        color: '#aaa',
+        fontSize: 12,
+        marginTop: 4,
+        lineHeight: 18,
+    },
 });
 
 export default EventDetailScreen;
+

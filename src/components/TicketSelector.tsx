@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -6,42 +6,35 @@ import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
-interface TicketTier {
+interface TicketTierInput {
     id: string;
     name: string;
     price: number;
-    color: string;
-    textColor: string;
-    perks: string[];
-    souvenirImage: string;
+    available?: number;
+    perks?: string[];
 }
 
-const TIERS: TicketTier[] = [
+interface TicketTier extends TicketTierInput {
+    color: string;
+    textColor: string;
+    souvenirImage: string;
+    perks: string[];
+}
+
+const PALETTE = [
     {
-        id: 'general',
-        name: 'GENERAL',
-        price: 15000,
         color: '#00D9FF',
         textColor: '#000',
-        perks: ['Acceso General', 'Barra Principal'],
         souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6298/6298900.png',
     },
     {
-        id: 'vip',
-        name: 'VIP GOLD',
-        price: 35000,
         color: '#FFD700',
         textColor: '#000',
-        perks: ['Acceso Rápido', 'Sector VIP', 'Barra Premium', 'NFT Exclusivo'],
         souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6941/6941697.png',
     },
     {
-        id: 'backstage',
-        name: 'BACKSTAGE',
-        price: 80000,
         color: '#E4CCFF',
         textColor: '#000',
-        perks: ['All Access', 'Meet & Greet', 'Bebidas Libres', 'NFT Legendario'],
         souvenirImage: 'https://cdn-icons-png.flaticon.com/512/6229/6229280.png',
     }
 ];
@@ -50,12 +43,48 @@ interface TicketSelectorProps {
     visible: boolean;
     onClose: () => void;
     onSelect: (tier: TicketTier) => void;
+    tiers?: TicketTierInput[];
+    feePercentage?: number;
 }
 
-const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSelect }) => {
+const buildPerks = (tier: TicketTierInput) => {
+    if (tier.perks && tier.perks.length > 0) return tier.perks;
+
+    const perks = ['Entrada digital QR', 'Acceso al evento'];
+    if (tier.available !== undefined) {
+        perks.push(`${tier.available} disponibles`);
+    } else {
+        perks.push('Cupo limitado');
+    }
+    return perks;
+};
+
+const TicketSelector: React.FC<TicketSelectorProps> = ({
+    visible,
+    onClose,
+    onSelect,
+    tiers = [],
+    feePercentage = 0
+}) => {
     const [selectedTierIndex, setSelectedTierIndex] = useState(0);
-    const selectedTier = TIERS[selectedTierIndex];
     const shadowAnim = useRef(new Animated.Value(0.5)).current;
+
+    const resolvedTiers: TicketTier[] = useMemo(() => {
+        const source = tiers.length > 0 ? tiers : [{ id: 'general', name: 'General', price: 0 }];
+
+        return source.map((tier, index) => {
+            const palette = PALETTE[index % PALETTE.length];
+            return {
+                ...tier,
+                color: palette.color,
+                textColor: palette.textColor,
+                souvenirImage: palette.souvenirImage,
+                perks: buildPerks(tier)
+            } as TicketTier;
+        });
+    }, [tiers]);
+
+    const selectedTier = resolvedTiers[selectedTierIndex] || resolvedTiers[0];
 
     useEffect(() => {
         Animated.loop(
@@ -64,16 +93,26 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                 Animated.timing(shadowAnim, { toValue: 0.5, duration: 1000, useNativeDriver: false }),
             ])
         ).start();
-    }, []);
+    }, [shadowAnim]);
+
+    useEffect(() => {
+        if (selectedTierIndex >= resolvedTiers.length) {
+            setSelectedTierIndex(0);
+        }
+    }, [resolvedTiers, selectedTierIndex]);
 
     const handleTierChange = (index: number) => {
         if (index !== selectedTierIndex) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            Haptics.selectionAsync();
             setSelectedTierIndex(index);
         }
     };
 
-    if (!visible) return null;
+    if (!visible || !selectedTier) return null;
+
+    const serviceFee = Math.round(selectedTier.price * Math.max(feePercentage, 0));
+    const total = selectedTier.price + serviceFee;
+    const hasServiceFee = serviceFee > 0;
 
     return (
         <View style={styles.overlay}>
@@ -83,7 +122,8 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                 shadowColor: selectedTier.color,
                 shadowOpacity: shadowAnim,
                 shadowRadius: 20,
-            }]}>
+            }]}
+            >
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Tu Experiencia</Text>
                     <TouchableOpacity onPress={onClose}>
@@ -92,7 +132,7 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                 </View>
 
                 <View style={styles.switchContainer}>
-                    {TIERS.map((tier, index) => (
+                    {resolvedTiers.map((tier, index) => (
                         <TouchableOpacity
                             key={tier.id}
                             style={[
@@ -104,8 +144,9 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                             <Text style={[
                                 styles.switchText,
                                 index === selectedTierIndex ? { color: tier.textColor, fontWeight: 'bold' } : { color: '#666' }
-                            ]}>
-                                {tier.name}
+                            ]}
+                            >
+                                {tier.name.toUpperCase()}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -122,8 +163,9 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                             style={styles.souvenirImage}
                             resizeMode="contain"
                         />
-                        <Text style={[styles.souvenirLabel, { color: selectedTier.color }]}>
-                            + {selectedTier.id === 'general' ? 'Badge Básico' : selectedTier.id === 'vip' ? 'Souvenir Gold' : 'Legendary NFT'}
+                        <Text style={[styles.souvenirLabel, { color: selectedTier.color }]}
+                        >
+                            + Entrada Digital
                         </Text>
                     </View>
 
@@ -143,20 +185,24 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                         <Text style={styles.priceLabel}>Entrada {selectedTier.name}</Text>
                         <Text style={styles.priceValue}>${selectedTier.price.toLocaleString()}</Text>
                     </View>
-                    <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Cargo por servicio</Text>
-                        <Text style={styles.priceValue}>${Math.round(selectedTier.price * 0.15).toLocaleString()}</Text>
-                    </View>
+                    {hasServiceFee && (
+                        <View style={styles.priceRow}>
+                            <Text style={styles.priceLabel}>Cargo por servicio</Text>
+                            <Text style={styles.priceValue}>${serviceFee.toLocaleString()}</Text>
+                        </View>
+                    )}
                     <View style={styles.divider} />
                     <View style={styles.priceRow}>
                         <Text style={styles.totalLabel}>Total</Text>
-                        <Text style={styles.totalValue}>${Math.round(selectedTier.price * 1.15).toLocaleString()}</Text>
+                        <Text style={styles.totalValue}>${total.toLocaleString()}</Text>
                     </View>
                 </View>
-
                 <TouchableOpacity
                     style={[styles.buyButton, { backgroundColor: selectedTier.color }]}
-                    onPress={() => onSelect(selectedTier)}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                        onSelect(selectedTier);
+                    }}
                 >
                     <LinearGradient
                         colors={['rgba(255,255,255,0.4)', 'transparent']}
@@ -164,7 +210,8 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({ visible, onClose, onSel
                         start={{ x: 0, y: 0 }}
                         end={{ x: 0, y: 0.5 }}
                     />
-                    <Text style={[styles.buyButtonText, { color: selectedTier.textColor }]}>
+                    <Text style={[styles.buyButtonText, { color: selectedTier.textColor }]}
+                    >
                         Confirmar Compra
                     </Text>
                     <Ionicons name="flash" size={18} color={selectedTier.textColor} />
@@ -190,7 +237,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 32,
         borderTopRightRadius: 32,
         padding: 24,
-        minHeight: 500,
+        minHeight: 520,
         borderWidth: 1,
         borderColor: '#333',
         shadowOffset: { width: 0, height: 0 },
@@ -327,3 +374,4 @@ const styles = StyleSheet.create({
 });
 
 export default TicketSelector;
+

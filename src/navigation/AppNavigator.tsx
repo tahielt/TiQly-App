@@ -200,11 +200,6 @@ const CustomTabBar = ({ state, descriptors, navigation }: any) => {
                 }
                 break;
               }
-              case 'Perfil':
-                iconName = 'person-outline';
-                iconNameFocused = 'person';
-                label = 'Perfil';
-                break;
             }
 
             if (isMapTab) {
@@ -333,11 +328,6 @@ const MainTabs = () => {
           tabBarLabel: orgTabLabel,
         }}
       />
-
-      <Tab.Screen
-        name="Perfil"
-        component={ProfileScreen}
-      />
     </Tab.Navigator>
   );
 };
@@ -397,6 +387,8 @@ export const AppNavigator = () => {
             <Stack.Screen name="ResaleMarket" component={ResaleMarketScreen} />
             <Stack.Screen name="MyListings" component={MyListingsScreen} />
             <Stack.Screen name="MyTickets" component={MyTicketsScreen} />
+            <Stack.Screen name="MyEvents" component={MyEventsScreen} />
+            <Stack.Screen name="OrgEventStats" component={EventStatsScreen} />
             {/* Swap still accessible from deep links */}
             <Stack.Screen name="SwapScreen" component={SwapScreen} />
           </>
@@ -486,3 +478,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#00D9FF',
   },
 });
+

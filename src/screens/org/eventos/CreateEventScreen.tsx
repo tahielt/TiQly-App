@@ -2,9 +2,10 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { eventService } from '../../../services/eventService';
 import { supabase } from '../../../lib/supabase';
-import { EVENT_CATEGORIES } from '../../../lib/mock-data';
+import { EVENT_CATEGORIES } from '../../../constants/eventCategories';
 import MapView from '../../../components/MapView';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -74,8 +75,8 @@ const CreateEventScreen = () => {
   const [formErrors, setFormErrors] = useState<{ title?: boolean; address?: boolean }>({});
   const scrollViewRef = useRef<ScrollView>(null);
   const loteRefs = useRef<{ [key: string]: View | null }>({});
-
   const addLote = () => {
+    Haptics.selectionAsync();
     const newLote: TicketLote = {
       id: Date.now().toString(),
       name: '',
@@ -86,6 +87,7 @@ const CreateEventScreen = () => {
   };
 
   const removeLote = (id: string) => {
+    Haptics.selectionAsync();
     if (ticketLotes.length > 1) {
       setTicketLotes(ticketLotes.filter(l => l.id !== id));
     }
@@ -109,8 +111,8 @@ const CreateEventScreen = () => {
       newFormErrors.address = true;
       hasFormErrors = true;
     }
-
     if (hasFormErrors) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setFormErrors(newFormErrors);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
       Alert.alert('Error', 'Por favor completa los campos requeridos');
@@ -129,8 +131,8 @@ const CreateEventScreen = () => {
         if (!firstErrorId) firstErrorId = lote.id;
       }
     });
-
     if (hasErrors) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setLoteErrors(newLoteErrors);
       // Scroll to lotes section roughly, or specific lote if possible
       scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -139,6 +141,7 @@ const CreateEventScreen = () => {
 
     const validLotes = ticketLotes.filter(l => l.name && l.price && l.quantity);
     if (validLotes.length === 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Agrega al menos un lote de entradas');
       return;
     }
@@ -178,7 +181,7 @@ const CreateEventScreen = () => {
             .getPublicUrl(fileName);
           coverImageUrl = urlData.publicUrl;
         }
-      } catch (uploadErr) {
+    } catch (uploadErr) {
         console.warn('Error uploading image:', uploadErr);
       }
     }
@@ -225,15 +228,18 @@ const CreateEventScreen = () => {
       const success = await eventService.createEvent(newEvent, user.id);
       setLoading(false);
       if (success) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         Alert.alert('¡Evento Creado!', `Tu evento ya está disponible con ${ticketTypes.length} tipos de entrada.`, [
-          { text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Eventos' }) }
+          { text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) }
         ]);
       } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert('Error', 'Hubo un problema al guardar el evento.');
       }
     } catch (error) {
       console.error('Error creating event:', error);
       setLoading(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Hubo un problema al guardar el evento.');
     }
   };
@@ -289,7 +295,10 @@ const CreateEventScreen = () => {
                 <TouchableOpacity
                   key={cat}
                   style={[styles.chip, form.category === cat && styles.chipActive]}
-                  onPress={() => setForm({ ...form, category: cat })}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setForm({ ...form, category: cat });
+                  }}
                 >
                   <Text style={[styles.chipText, form.category === cat && styles.chipTextActive]}>{cat}</Text>
                 </TouchableOpacity>
@@ -456,7 +465,7 @@ const CreateEventScreen = () => {
                   <TouchableOpacity
                     key={preset}
                     style={styles.presetChip}
-                    onPress={() => {
+                  onPress={() => {
                       const newLote: TicketLote = {
                         id: Date.now().toString(),
                         name: preset,
@@ -846,3 +855,14 @@ const styles = StyleSheet.create({
 });
 
 export default CreateEventScreen;
+
+
+
+
+
+
+
+
+
+
+
