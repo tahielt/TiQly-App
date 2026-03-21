@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getEventTicketSales, PLATFORM_FEE_PERCENTAGE } from '../../../services/ticketService';
+import { getEventTicketSales } from '../../../services/ticketService';
+import { DEFAULT_PRIMARY_FEE_PCT, getPlatformConfig } from '../../../services/monetizationService';
 
 // Types for route params
 type RouteParams = {
@@ -28,9 +29,11 @@ const EventStatsScreen = () => {
 
     const [loading, setLoading] = useState(true);
     const [sales, setSales] = useState<any[]>([]);
+    const [primaryFeePct, setPrimaryFeePct] = useState(DEFAULT_PRIMARY_FEE_PCT);
 
     useEffect(() => {
         loadSales();
+        loadPlatformFeeConfig();
     }, [eventId]);
 
     const loadSales = async () => {
@@ -46,11 +49,31 @@ const EventStatsScreen = () => {
         }
     };
 
+    const loadPlatformFeeConfig = async () => {
+        try {
+            const config = await getPlatformConfig();
+            setPrimaryFeePct(config.primaryFeePct);
+        } catch (error) {
+            console.error('Error loading platform fee config:', error);
+        }
+    };
+
     const totalTickets = sales.length;
     const totalRevenue = sales.reduce((sum, t) => sum + (t.price || 0), 0);
-    const showPlatformFee = PLATFORM_FEE_PERCENTAGE > 0;
-    const baseRevenue = showPlatformFee ? totalRevenue / (1 + PLATFORM_FEE_PERCENTAGE) : totalRevenue;
-    const platformFee = showPlatformFee ? totalRevenue - baseRevenue : 0;
+    const storedBaseRevenue = sales.reduce((sum, t) => sum + (t.basePrice || 0), 0);
+    const storedPlatformFee = sales.reduce((sum, t) => sum + (t.platformFee || 0), 0);
+    const hasStoredFeeBreakdown = sales.some((sale) => sale.basePrice !== undefined || sale.platformFee !== undefined);
+    const showPlatformFee = hasStoredFeeBreakdown ? storedPlatformFee > 0 : primaryFeePct > 0;
+    const baseRevenue = hasStoredFeeBreakdown
+        ? storedBaseRevenue
+        : showPlatformFee
+            ? totalRevenue / (1 + primaryFeePct)
+            : totalRevenue;
+    const platformFee = hasStoredFeeBreakdown
+        ? storedPlatformFee
+        : showPlatformFee
+            ? totalRevenue - baseRevenue
+            : 0;
 
     const ticketsByType = useMemo(() => {
         return sales.reduce((acc, t) => {
@@ -134,7 +157,7 @@ const EventStatsScreen = () => {
                                 <>
                                     <View style={styles.revenueDivider} />
                                     <View style={styles.revenueRow}>
-                                        <Text style={styles.revenueLabel}>Comisión TiQly ({Math.round(PLATFORM_FEE_PERCENTAGE * 100)}%)</Text>
+                                        <Text style={styles.revenueLabel}>Comisión TiQly ({Math.round(primaryFeePct * 100)}%)</Text>
                                         <Text style={styles.revenueValueSmall}>-${platformFee.toLocaleString()}</Text>
                                     </View>
                                 </>
@@ -159,7 +182,7 @@ const EventStatsScreen = () => {
                                         <View style={styles.loteIndicator} />
                                         <Text style={styles.loteName}>{type}</Text>
                                     </View>
-                                    <Text style={styles.loteCount}>{count} vendidos</Text>
+                                    <Text style={styles.loteCount}>{String(count)} vendidos</Text>
                                 </View>
                             ))
                         )}
@@ -412,5 +435,7 @@ const styles = StyleSheet.create({
 });
 
 export default EventStatsScreen;
+
+
 
 

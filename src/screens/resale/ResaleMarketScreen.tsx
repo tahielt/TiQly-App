@@ -30,7 +30,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useSelector } from 'react-redux';
 
 import ResaleListingCard from '../../components/ResaleListingCard';
-import { getEventResales, purchaseResale, calculateResaleFees } from '../../services/resaleService';
+import { getEventResales, purchaseResale } from '../../services/resaleService';
 import { ResaleListing } from '../../types/resale';
 
 interface RouteParams {
@@ -233,9 +233,9 @@ const ResaleMarketScreen: React.FC = () => {
                                             </Text>
                                         </View>
                                         <View style={styles.modalFeeRow}>
-                                            <Text style={styles.modalFeeLabel}>Service fee TiQly</Text>
+                                            <Text style={styles.modalFeeLabel}>Fee TiQly</Text>
                                             <Text style={styles.modalFeeValue}>
-                                                +{formatCurrency(selectedListing.buyerServiceFee)}
++{formatCurrency(selectedListing.platformFee)}
                                             </Text>
                                         </View>
                                         <View style={styles.modalDivider} />
@@ -490,3 +490,5 @@ const styles = StyleSheet.create({
 });
 
 export default ResaleMarketScreen;
+
+

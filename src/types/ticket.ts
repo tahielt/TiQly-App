@@ -15,11 +15,14 @@ export interface Ticket {
   ticketTypeId: string;
   ticketTypeName: string;
   price: number;
-  qrCode: string; // QR code data
+  basePrice?: number;
+  platformFee?: number;
+  saleChannel?: 'primary' | 'resale';
+  qrCode: string;
   status: TicketStatus;
   purchaseDate: Date;
   usedAt?: Date;
-  scannedBy?: string; // user id of staff who scanned
+  scannedBy?: string;
   transferHistory: TicketTransfer[];
   originalOwnerId: string;
   createdAt: Date;
@@ -58,8 +61,7 @@ export interface PurchaseData {
   ticketTypeId: string;
   quantity: number;
   totalAmount: number;
-  platformFee: number; // 0% (no fee)
+  platformFee: number;
   finalAmount: number;
-  paymentMethodId?: string; // For saved cards
+  paymentMethodId?: string;
 }
-

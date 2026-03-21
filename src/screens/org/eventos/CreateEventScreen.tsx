@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator, Image, KeyboardAvoidingView, Platform, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { eventService } from '../../../services/eventService';
+import { DEFAULT_PUBLISH_FEE_THRESHOLD, getPlatformConfig } from '../../../services/monetizationService';
 import { supabase } from '../../../lib/supabase';
 import { EVENT_CATEGORIES } from '../../../constants/eventCategories';
 import MapView from '../../../components/MapView';
@@ -22,6 +23,8 @@ const LOTE_PRESETS = ['Early Bird', 'General', 'VIP', 'Last Call', 'VIP Last Cal
 const CreateEventScreen = () => {
   const navigation = useNavigation<any>();
   const [loading, setLoading] = useState(false);
+  const [publishFee, setPublishFee] = useState(0);
+  const [publishFeeThreshold, setPublishFeeThreshold] = useState(DEFAULT_PUBLISH_FEE_THRESHOLD);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [eventDate, setEventDate] = useState(new Date());
@@ -30,6 +33,16 @@ const CreateEventScreen = () => {
     t.setHours(22, 0, 0, 0);
     return t;
   });
+
+  useEffect(() => {
+    const loadMonetizationConfig = async () => {
+      const config = await getPlatformConfig();
+      setPublishFee(config.publishFee);
+      setPublishFeeThreshold(config.publishFeeThreshold);
+    };
+
+    loadMonetizationConfig();
+  }, []);
 
   // Form State
   const [form, setForm] = useState({
@@ -225,16 +238,20 @@ const CreateEventScreen = () => {
     };
 
     try {
-      const success = await eventService.createEvent(newEvent, user.id);
+      const result = await eventService.createEvent(newEvent, user.id);
       setLoading(false);
-      if (success) {
+      if (result.success) {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        Alert.alert('¡Evento Creado!', `Tu evento ya está disponible con ${ticketTypes.length} tipos de entrada.`, [
+        const publishFeeMessage = result.billing?.publishFeeApplied
+          ? ` Se aplicó un fee operativo de publicación de $${result.billing.publishFeeApplied.toLocaleString('es-AR')}.`
+          : ` Primeros ${result.billing?.publishFeeThreshold || publishFeeThreshold} eventos del mes incluidos.`;
+
+        Alert.alert('¡Evento Creado!', `Tu evento ya está disponible con ${ticketTypes.length} tipos de entrada.${publishFeeMessage}`, [
           { text: 'OK', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) }
         ]);
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Error', 'Hubo un problema al guardar el evento.');
+        Alert.alert('Error', result.error || 'Hubo un problema al guardar el evento.');
       }
     } catch (error) {
       console.error('Error creating event:', error);
@@ -275,6 +292,19 @@ const CreateEventScreen = () => {
               </>
             )}
           </TouchableOpacity>
+
+          <View style={styles.publishFeeCard}>
+            <View style={styles.publishFeeHeader}>
+              <Ionicons name="flash-outline" size={18} color="#00D9FF" />
+              <Text style={styles.publishFeeTitle}>Monetización del organizador</Text>
+            </View>
+            <Text style={styles.publishFeeText}>
+              Hasta {publishFeeThreshold} eventos publicados por mes están incluidos. Desde el {publishFeeThreshold + 1}, TiQly aplica ${publishFee.toLocaleString('es-AR')} por publicación.
+            </Text>
+            <Text style={styles.publishFeeSubtext}>
+              Si superás ese volumen, conviene pasar a un plan para negociar descuento operativo y mejores condiciones.
+            </Text>
+          </View>
 
           <View style={styles.form}>
             <Text style={styles.label}>Título del Evento</Text>
@@ -604,6 +634,35 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 8,
   },
+  publishFeeCard: {
+    backgroundColor: 'rgba(0, 217, 255, 0.08)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 217, 255, 0.18)',
+    padding: 16,
+    marginBottom: 24,
+  },
+  publishFeeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  publishFeeTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  publishFeeText: {
+    color: '#D7F7FF',
+    lineHeight: 20,
+  },
+  publishFeeSubtext: {
+    color: '#7ECFE0',
+    marginTop: 8,
+    lineHeight: 18,
+    fontSize: 12,
+  },
   form: {
     gap: 16,
   },
@@ -855,6 +914,11 @@ const styles = StyleSheet.create({
 });
 
 export default CreateEventScreen;
+
+
+
+
+
 
 
 

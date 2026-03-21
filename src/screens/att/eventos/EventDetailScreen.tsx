@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
 import { purchaseTicket } from '../../../services/ticketService';
+import { calculatePrimaryPricing, DEFAULT_PRIMARY_FEE_PCT, getPlatformConfig } from '../../../services/monetizationService';
 import { notifyTicketPurchase } from '../../../services/notificationService';
 import { supabase } from '../../../lib/supabase';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -45,6 +46,7 @@ const EventDetailScreen = () => {
     const [event, setEvent] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+    const [primaryFeePct, setPrimaryFeePct] = useState(DEFAULT_PRIMARY_FEE_PCT);
 
     const tiers = useMemo(() => {
         if (!event) return [];
@@ -83,6 +85,7 @@ const EventDetailScreen = () => {
 
     useEffect(() => {
         loadEvent();
+        loadPlatformConfig();
     }, [eventId]);
 
     const loadEvent = async () => {
@@ -95,6 +98,16 @@ const EventDetailScreen = () => {
             setLoading(false);
         }
     };
+
+    const loadPlatformConfig = async () => {
+        try {
+            const config = await getPlatformConfig();
+            setPrimaryFeePct(config.primaryFeePct);
+        } catch (error) {
+            console.error('Error loading platform config:', error);
+        }
+    };
+
     const toggleAudioPreview = async () => {
         Haptics.selectionAsync();
 
@@ -151,16 +164,16 @@ const EventDetailScreen = () => {
 
             const ticketTypeId = tier.id && tier.id !== 'general' ? tier.id : '';
 
-            // Create purchase data using tier price
+            // Create purchase data using server-backed fee rules
             const basePrice = tier.price;
-            const platformFee = 0;
+            const pricing = calculatePrimaryPricing(basePrice, primaryFeePct);
             const purchaseData = {
                 eventId: event.id,
                 ticketTypeId,
                 quantity: 1,
-                totalAmount: basePrice,
-                platformFee: platformFee,
-                finalAmount: basePrice
+                totalAmount: pricing.basePrice,
+                platformFee: pricing.platformFee,
+                finalAmount: pricing.finalAmount
             };
 
             // Call real ticketService (Supabase)
@@ -242,7 +255,7 @@ const EventDetailScreen = () => {
                     onClose={() => setIsSelectorVisible(false)}
                     onSelect={handleTierSelection}
                     tiers={tiers}
-                    feePercentage={0}
+                    feePercentage={primaryFeePct}
                 />
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -271,7 +284,7 @@ const EventDetailScreen = () => {
                             </Text>
                             {isPlayingAudio && (
                                 <View style={styles.equalizer}>
-                                    {/* Mock equalizer bars */}
+                                    {/* Animated equalizer bars */}
                                     <View style={[styles.bar, { height: 10 }]} />
                                     <View style={[styles.bar, { height: 16 }]} />
                                     <View style={[styles.bar, { height: 8 }]} />
@@ -664,4 +677,7 @@ const styles = StyleSheet.create({
 });
 
 export default EventDetailScreen;
+
+
+
 

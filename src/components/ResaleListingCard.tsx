@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -23,7 +23,6 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ResaleListing } from '../types/resale';
-import { calculateResaleFees } from '../services/resaleService';
 
 interface ResaleListingCardProps {
     listing: ResaleListing;
@@ -159,13 +158,13 @@ const ResaleListingCard: React.FC<ResaleListingCardProps> = ({
                                 </View>
                                 {variant === 'buyer' ? (
                                     <View style={styles.feeRow}>
-                                        <Text style={styles.feeLabel}>Service fee TiQly</Text>
-                                        <Text style={styles.feeValue}>+{formatCurrency(listing.buyerServiceFee)}</Text>
+                                        <Text style={styles.feeLabel}>Fee TiQly</Text>
+                                        <Text style={styles.feeValue}>+{formatCurrency(listing.platformFee)}</Text>
                                     </View>
                                 ) : (
                                     <View style={styles.feeRow}>
-                                        <Text style={styles.feeLabel}>Comisión TiQly</Text>
-                                        <Text style={styles.feeValueNegative}>-{formatCurrency(listing.sellerCommission)}</Text>
+                                        <Text style={styles.feeLabel}>Fee TiQly al comprador</Text>
+                                        <Text style={styles.feeValue}>+{formatCurrency(listing.platformFee)}</Text>
                                     </View>
                                 )}
                             </View>
@@ -344,3 +343,4 @@ const styles = StyleSheet.create({
 });
 
 export default ResaleListingCard;
+

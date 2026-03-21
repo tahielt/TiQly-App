@@ -8,7 +8,7 @@ export const PlaceholderScreen = ({ route }: any) => {
             <Text style={styles.logo}>Ti<Text style={{ color: '#00D9FF' }}>Q</Text>ly</Text>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.text}>Esta sección móvil está en construcción.</Text>
-            <Text style={styles.subtext}>Usá la versión Web para ver el Mock completo.</Text>
+            <Text style={styles.subtext}>La versión móvil completa de esta sección todavía está en construcción.</Text>
         </View>
     );
 };
@@ -44,3 +44,4 @@ const styles = StyleSheet.create({
         fontSize: 12,
     }
 });
+

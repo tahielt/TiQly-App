@@ -5,10 +5,14 @@
     "jsx": "react-native"
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx"
+    "App.tsx",
+    "index.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tiqly-web",
+    "supabase/functions"
   ]
 }

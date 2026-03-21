@@ -84,7 +84,7 @@ const MyListingsScreen: React.FC = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         try {
-            await cancelResaleListing(listing.id, user.id, 'Cancelled by user');
+            await cancelResaleListing(listing.id, user.id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             loadListings();
         } catch (error: any) {
@@ -287,3 +287,4 @@ const styles = StyleSheet.create({
 });
 
 export default MyListingsScreen;
+

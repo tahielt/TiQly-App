@@ -1,7 +1,7 @@
 # purchase-ticket Edge Function
 
 ## Purpose
-Creates tickets server-side and computes fees securely. This removes price manipulation from the client.
+Creates tickets server-side, reads fee config from `platform_config`, and delegates stock decrement plus ticket creation to `purchase_ticket_atomic()` in Postgres.
 
 ## Required env
 - `SUPABASE_URL`
@@ -9,11 +9,11 @@ Creates tickets server-side and computes fees securely. This removes price manip
 - `SUPABASE_SERVICE_ROLE_KEY`
 
 ## Deploy
-```
+```bash
 supabase functions deploy purchase-ticket
 ```
 
 ## Notes
-- This function uses the service role to insert tickets.
-- You should still enforce RLS policies and/or DB constraints for full protection.
-- Consider replacing the `available` update with a SQL function to avoid race conditions.
+- Pricing is finalized in SQL, not in the client.
+- Stock is decremented atomically inside the database transaction to avoid overselling.
+- Apply [monetization_v2.sql](C:/Users/mocha/Documents/TiQly/supabase/sql/monetization_v2.sql) before deploying the function.

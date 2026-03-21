@@ -3,79 +3,108 @@
 -- EVENTS
 alter table if exists public.events enable row level security;
 
-create policy if not exists "events_read_all"
+drop policy if exists "events_read_all" on public.events;
+drop policy if exists "events_insert_organizer" on public.events;
+drop policy if exists "events_insert_service_only" on public.events;
+drop policy if exists "events_update_organizer" on public.events;
+
+create policy "events_read_all"
   on public.events for select
   using (true);
 
-create policy if not exists "events_insert_organizer"
+create policy "events_insert_service_only"
   on public.events for insert
-  with check (auth.uid() = organizer_id);
+  with check (false);
 
-create policy if not exists "events_update_organizer"
+create policy "events_update_organizer"
   on public.events for update
   using (auth.uid() = organizer_id)
   with check (auth.uid() = organizer_id);
 
--- TICKET TYPES (public read, organizer write)
+-- TICKET TYPES
 alter table if exists public.ticket_types enable row level security;
 
-create policy if not exists "ticket_types_read_all"
+drop policy if exists "ticket_types_read_all" on public.ticket_types;
+drop policy if exists "ticket_types_write_organizer" on public.ticket_types;
+drop policy if exists "ticket_types_update_organizer" on public.ticket_types;
+drop policy if exists "ticket_types_insert_service_only" on public.ticket_types;
+drop policy if exists "ticket_types_update_service_only" on public.ticket_types;
+
+create policy "ticket_types_read_all"
   on public.ticket_types for select
   using (true);
 
-create policy if not exists "ticket_types_write_organizer"
+create policy "ticket_types_insert_service_only"
   on public.ticket_types for insert
-  with check (
-    exists (
-      select 1 from public.events e
-      where e.id = ticket_types.event_id
-        and e.organizer_id = auth.uid()
-    )
-  );
+  with check (false);
 
-create policy if not exists "ticket_types_update_organizer"
+create policy "ticket_types_update_service_only"
   on public.ticket_types for update
-  using (
-    exists (
-      select 1 from public.events e
-      where e.id = ticket_types.event_id
-        and e.organizer_id = auth.uid()
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.events e
-      where e.id = ticket_types.event_id
-        and e.organizer_id = auth.uid()
-    )
-  );
+  using (false)
+  with check (false);
 
--- TICKETS (no client-side inserts/updates; owners + organizers can read)
+-- TICKETS
 alter table if exists public.tickets enable row level security;
 
-create policy if not exists "tickets_read_owner_or_organizer"
+drop policy if exists "tickets_read_owner_or_organizer" on public.tickets;
+drop policy if exists "tickets_block_client_inserts" on public.tickets;
+drop policy if exists "tickets_block_client_updates" on public.tickets;
+
+create policy "tickets_read_owner_or_organizer"
   on public.tickets for select
   using (
     auth.uid() = user_id
     or exists (
-      select 1 from public.events e
-      where e.id = tickets.event_id
-        and e.organizer_id = auth.uid()
+      select 1
+        from public.events e
+       where e.id = tickets.event_id
+         and e.organizer_id = auth.uid()
     )
   );
 
-create policy if not exists "tickets_block_client_inserts"
+create policy "tickets_block_client_inserts"
   on public.tickets for insert
   with check (false);
 
-create policy if not exists "tickets_block_client_updates"
+create policy "tickets_block_client_updates"
   on public.tickets for update
   using (false)
   with check (false);
 
--- PLATFORM CONFIG (service role only)
+-- TICKET LISTINGS
+alter table if exists public.ticket_listings enable row level security;
+
+drop policy if exists "ticket_listings_read_market_or_owned" on public.ticket_listings;
+drop policy if exists "ticket_listings_block_client_inserts" on public.ticket_listings;
+drop policy if exists "ticket_listings_block_client_updates" on public.ticket_listings;
+drop policy if exists "ticket_listings_block_client_deletes" on public.ticket_listings;
+
+create policy "ticket_listings_read_market_or_owned"
+  on public.ticket_listings for select
+  using (
+    status = 'listed'
+    or seller_id = auth.uid()
+    or buyer_id = auth.uid()
+  );
+
+create policy "ticket_listings_block_client_inserts"
+  on public.ticket_listings for insert
+  with check (false);
+
+create policy "ticket_listings_block_client_updates"
+  on public.ticket_listings for update
+  using (false)
+  with check (false);
+
+create policy "ticket_listings_block_client_deletes"
+  on public.ticket_listings for delete
+  using (false);
+
+-- PLATFORM CONFIG
 alter table if exists public.platform_config enable row level security;
 
-create policy if not exists "platform_config_service_only"
+drop policy if exists "platform_config_service_only" on public.platform_config;
+
+create policy "platform_config_service_only"
   on public.platform_config for select
   using (auth.role() = 'service_role');

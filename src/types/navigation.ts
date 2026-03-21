@@ -21,7 +21,7 @@ export type RootStackParamList = {
   AttEventoDetalle: { eventId: string };
   // Resale Marketplace
   CreateResale: {
-    orderId: string;
+    ticketId: string;
     ticketInfo: {
       eventTitle: string;
       eventDate: string;
@@ -87,3 +87,4 @@ export type MainTabParamList = {
   Org: undefined;
   Perfil: undefined;
 };
+

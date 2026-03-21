@@ -50,7 +50,7 @@ const MyEventsScreen = () => {
             try {
                 const sales = await getEventTicketSales(event.id);
                 const sold = sales.length;
-                const revenue = sales.reduce((sum, sale) => sum + (sale.price || 0), 0);
+                const revenue = sales.reduce((sum, sale) => sum + (sale.basePrice || sale.price || 0), 0);
                 return { id: event.id, sold, revenue };
             } catch (error) {
                 console.error('Error loading stats for event:', event.id, error);
@@ -407,6 +407,7 @@ const styles = StyleSheet.create({
 });
 
 export default MyEventsScreen;
+
 
 
 

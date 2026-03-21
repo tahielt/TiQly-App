@@ -1,91 +1,84 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  StatusBar,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  TextInput,
-  Modal,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../store/store';
-import { logoutUser, updateUserProfile } from '../../features/auth/authSlice';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { clearAllTestData } from '../../lib/mock-data';
-import { eventService } from '../../services/eventService';
+
+import { RootState, AppDispatch } from '../../store/store';
+import { logoutUser, updateUserProfile } from '../../features/auth/authSlice';
+import * as authService from '../../services/authService';
 import { supabase } from '../../lib/supabase';
-import { useFocusEffect } from '@react-navigation/native';
 import { getUserGamificationState, UserGamificationState } from '../../services/xpService';
 import { LevelProgressBar } from '../../components/gamification';
-
-// Payment methods placeholder (will integrate with Mercado Pago later)
-const PLACEHOLDER_PAYMENT_METHODS: any[] = [];
 
 const ProfileScreen = ({ navigation }: any) => {
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
 
-  // Real stats from Supabase
   const [stats, setStats] = useState({ tickets: 0, events: 0, following: 0 });
   const [xpState, setXpState] = useState<UserGamificationState | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
-  // Edit Profile Modal State
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [editAvatar, setEditAvatar] = useState(user?.avatar || '');
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  // Password Modal State
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswords, setShowPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
-  // Payment Methods State (placeholder for Mercado Pago integration)
-  const [paymentMethods, setPaymentMethods] = useState<{ id: string; type: string; last4: string; expiry: string; isDefault: boolean }[]>(PLACEHOLDER_PAYMENT_METHODS);
-  const [addCardModalVisible, setAddCardModalVisible] = useState(false);
-
-  // Load real stats from Supabase
   const loadStats = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setStats({ tickets: 0, events: 0, following: 0 });
+      setXpState(null);
+      setLoadingStats(false);
+      return;
+    }
+
     setLoadingStats(true);
     try {
-      // Count user's tickets
-      const { count: ticketCount } = await supabase
-        .from('tickets')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+      const [{ count: ticketCount }, { data: ticketsData }] = await Promise.all([
+        supabase
+          .from('tickets')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('tickets')
+          .select('event_id')
+          .eq('user_id', user.id),
+      ]);
 
-      // Count unique events attended
-      const { data: ordersData } = await supabase
-        .from('tickets')
-        .select('event_id')
-        .eq('user_id', user.id);
-
-      const uniqueEvents = new Set(ticketsData?.map(t => t.event_id) || []);
-
+      const uniqueEvents = new Set((ticketsData || []).map((ticket: any) => ticket.event_id));
       setStats({
         tickets: ticketCount || 0,
         events: uniqueEvents.size,
-        following: 0 // TODO: Implement following when social is ready
+        following: 0,
       });
 
-      // Load Gamification State
       const gamificationState = await getUserGamificationState(user.id);
       setXpState(gamificationState);
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading profile stats:', error);
     } finally {
       setLoadingStats(false);
     }
@@ -94,21 +87,12 @@ const ProfileScreen = ({ navigation }: any) => {
   useFocusEffect(
     useCallback(() => {
       loadStats();
-    }, [loadStats])
+      setEditName(user?.name || '');
+      setEditPhone(user?.phone || '');
+      setEditAvatar(user?.avatar || '');
+    }, [loadStats, user?.avatar, user?.name, user?.phone]),
   );
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro que querés cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sí, salir', style: 'destructive', onPress: () => dispatch(logoutUser()) },
-      ]
-    );
-  };
-
-  // 📷 Pick Image from Gallery
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -128,116 +112,123 @@ const ProfileScreen = ({ navigation }: any) => {
     }
   };
 
-  // 💾 Save Profile Changes
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
     if (!editName.trim()) {
       Alert.alert('Error', 'El nombre no puede estar vacío');
       return;
     }
 
-    // Mock save - in production this would call an API
-    dispatch(updateUserProfile({ name: editName, phone: editPhone, avatar: editAvatar }));
-    setEditModalVisible(false);
-    Alert.alert('✅ Perfil Actualizado', 'Tus cambios fueron guardados correctamente.');
+    setSavingProfile(true);
+    try {
+      const updates = {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        avatar_url: editAvatar || undefined,
+      };
+
+      const profileResult = await authService.updateProfile(user.id, updates);
+      if (!profileResult.success) {
+        throw new Error(profileResult.error || 'No se pudo actualizar el perfil');
+      }
+
+      await supabase.auth.updateUser({
+        data: {
+          name: editName.trim(),
+        },
+      });
+
+      dispatch(updateUserProfile({
+        name: editName.trim(),
+        phone: editPhone.trim(),
+        avatar: editAvatar || undefined,
+      }));
+
+      setEditModalVisible(false);
+      Alert.alert('Perfil actualizado', 'Tus cambios ya quedaron guardados.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'No se pudo actualizar el perfil');
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
-  // 🔐 Handle Password Change (Real Supabase Auth)
   const handleChangePassword = async () => {
     if (!newPassword || !confirmPassword) {
       Alert.alert('Error', 'Completá la nueva contraseña');
       return;
     }
+
     if (newPassword.length < 8) {
       Alert.alert('Error', 'La nueva contraseña debe tener al menos 8 caracteres');
       return;
     }
+
     if (newPassword !== confirmPassword) {
       Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
+    setChangingPassword(true);
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
 
       setPasswordModalVisible(false);
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      Alert.alert('✅ Contraseña Actualizada', 'Tu contraseña fue cambiada exitosamente.');
+      Alert.alert('Contraseña actualizada', 'Tu contraseña fue cambiada exitosamente.');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'No se pudo cambiar la contraseña');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
-  // 💳 Handle Add Card (Mock)
-  const handleAddCard = () => {
-    setAddCardModalVisible(false);
-    const newCard = {
-      id: Date.now().toString(),
-      type: 'visa',
-      last4: Math.floor(1000 + Math.random() * 9000).toString(),
-      expiry: '12/28',
-      isDefault: paymentMethods.length === 0,
-    };
-    setPaymentMethods([...paymentMethods, newCard]);
-    Alert.alert('✅ Tarjeta Agregada', 'Tu nueva tarjeta fue guardada correctamente.');
-  };
-
-  // 🗑️ Delete Card
-  const handleDeleteCard = (cardId: string) => {
+  const handleLogout = () => {
     Alert.alert(
-      'Eliminar Tarjeta',
-      '¿Estás seguro que querés eliminar esta tarjeta?',
+      'Cerrar sesión',
+      '¿Querés cerrar tu sesión en TiQly?',
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => setPaymentMethods(paymentMethods.filter(c => c.id !== cardId))
-        },
-      ]
+        { text: 'Salir', style: 'destructive', onPress: () => dispatch(logoutUser()) },
+      ],
     );
   };
 
-  // ⭐ Set Default Card
-  const handleSetDefaultCard = (cardId: string) => {
-    setPaymentMethods(paymentMethods.map(c => ({ ...c, isDefault: c.id === cardId })));
-  };
-
-  const getCardIcon = (type: string) => {
-    switch (type) {
-      case 'visa': return 'card';
-      case 'mastercard': return 'card';
-      default: return 'card-outline';
-    }
-  };
-
   const avatarUri = editAvatar || user?.avatar ||
-    `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=00D9FF&color=000&size=256`;
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'TiQly')}&background=00D9FF&color=000&size=256`;
+
+  const renderStat = (label: string, value: number) => (
+    <View style={styles.statItem}>
+      {loadingStats ? (
+        <ActivityIndicator size="small" color="#00D9FF" />
+      ) : (
+        <Text style={styles.statValue}>{value}</Text>
+      )}
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Profile Header */}
-        <View style={styles.header}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headerCard}>
           <View style={styles.avatarContainer}>
             <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            <TouchableOpacity style={styles.editAvatar} onPress={() => setEditModalVisible(true)}>
-              <Ionicons name="pencil" size={18} color="#000" />
+            <TouchableOpacity style={styles.editAvatarButton} onPress={() => setEditModalVisible(true)}>
+              <Ionicons name="pencil" size={16} color="#000" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.userName}>{user?.name || 'Nombre Usuario'}</Text>
+
+          <Text style={styles.userName}>{user?.name || 'Tu perfil'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'email@tiqly.app'}</Text>
-          {user?.phone && <Text style={styles.userPhone}>📱 {user.phone}</Text>}
+          {!!user?.phone && <Text style={styles.userPhone}>{user.phone}</Text>}
 
           {xpState && (
-            <View style={{ width: '80%', marginTop: 16 }}>
+            <View style={styles.levelContainer}>
               <LevelProgressBar
                 level={xpState.level}
                 progress={xpState.progressToNextLevel}
@@ -247,450 +238,197 @@ const ProfileScreen = ({ navigation }: any) => {
           )}
         </View>
 
-        {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            {loadingStats ? (
-              <ActivityIndicator size="small" color="#00D9FF" />
-            ) : (
-              <Text style={styles.statValue}>{stats.events}</Text>
-            )}
-            <Text style={styles.statLabel}>Eventos</Text>
-          </View>
+          {renderStat('Eventos', stats.events)}
           <View style={styles.verticalDivider} />
-          <View style={styles.statItem}>
-            {loadingStats ? (
-              <ActivityIndicator size="small" color="#00D9FF" />
-            ) : (
-              <Text style={styles.statValue}>{stats.tickets}</Text>
-            )}
-            <Text style={styles.statLabel}>Tickets</Text>
-          </View>
+          {renderStat('Tickets', stats.tickets)}
           <View style={styles.verticalDivider} />
-          <View style={styles.statItem}>
-            {loadingStats ? (
-              <ActivityIndicator size="small" color="#00D9FF" />
-            ) : (
-              <Text style={styles.statValue}>{stats.following}</Text>
-            )}
-            <Text style={styles.statLabel}>Siguiendo</Text>
-          </View>
+          {renderStat('Siguiendo', stats.following)}
         </View>
 
-        {/* ✏️ Mi Cuenta */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mi Cuenta</Text>
+          <Text style={styles.sectionTitle}>Mi cuenta</Text>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => setEditModalVisible(true)}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
-              <Ionicons name="person-outline" size={22} color="#00D9FF" />
+            <View style={[styles.iconBox, styles.iconBlue]}>
+              <Ionicons name="person-outline" size={20} color="#00D9FF" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Editar Perfil</Text>
-              <Text style={styles.menuSubtext}>Nombre, foto, teléfono</Text>
+            <View style={styles.menuCopy}>
+              <Text style={styles.menuText}>Editar perfil</Text>
+              <Text style={styles.menuSubtext}>Nombre, foto y teléfono</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
+            <Ionicons name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => setPasswordModalVisible(true)}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 255, 157, 0.1)' }]}>
-              <Ionicons name="lock-closed-outline" size={22} color="#00FF9D" />
+            <View style={[styles.iconBox, styles.iconGreen]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#00FF9D" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Cambiar Contraseña</Text>
-              <Text style={styles.menuSubtext}>Actualizar credenciales</Text>
+            <View style={styles.menuCopy}>
+              <Text style={styles.menuText}>Cambiar contraseña</Text>
+              <Text style={styles.menuSubtext}>Actualizá tus credenciales</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
+            <Ionicons name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
         </View>
 
-        {/* 💳 Métodos de Pago */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Métodos de Pago</Text>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setAddCardModalVisible(true)}
-            >
-              <Ionicons name="add" size={18} color="#00D9FF" />
-              <Text style={styles.addButtonText}>Agregar</Text>
-            </TouchableOpacity>
-          </View>
-
-          {paymentMethods.length === 0 ? (
-            <View style={styles.emptyPayment}>
-              <Ionicons name="card-outline" size={40} color="#333" />
-              <Text style={styles.emptyPaymentText}>No tenés tarjetas guardadas</Text>
-              <Text style={styles.emptyPaymentSubtext}>Agregá una para comprar en 1 click</Text>
+          <Text style={styles.sectionTitle}>Pagos y tickets</Text>
+          <View style={styles.infoCard}>
+            <Ionicons name="card-outline" size={20} color="#00D9FF" />
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoTitle}>Checkout centralizado</Text>
+              <Text style={styles.infoText}>
+                Los medios de pago se gestionan durante la compra para mantener la experiencia real y sin datos de prueba en producción.
+              </Text>
             </View>
-          ) : (
-            paymentMethods.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={[styles.cardItem, card.isDefault && styles.cardItemDefault]}
-                onPress={() => handleSetDefaultCard(card.id)}
-              >
-                <View style={styles.cardIcon}>
-                  <Ionicons name={getCardIcon(card.type)} size={24} color="#00D9FF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardNumber}>
-                    •••• •••• •••• {card.last4}
-                  </Text>
-                  <Text style={styles.cardExpiry}>Vence {card.expiry}</Text>
-                </View>
-                {card.isDefault && (
-                  <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Predeterminada</Text>
-                  </View>
-                )}
-                <TouchableOpacity
-                  style={styles.deleteCardBtn}
-                  onPress={() => handleDeleteCard(card.id)}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#FF4444" />
-                </TouchableOpacity>
-              </TouchableOpacity>
-            ))
-          )}
+          </View>
         </View>
 
-        {/* ⚙️ Aplicación */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aplicación</Text>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-              <Ionicons name="notifications-outline" size={22} color="#fff" />
+            <View style={styles.iconBox}>
+              <Ionicons name="notifications-outline" size={20} color="#fff" />
             </View>
             <Text style={styles.menuText}>Notificaciones</Text>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
+            <Ionicons name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-              <Ionicons name="shield-checkmark-outline" size={22} color="#fff" />
+            <View style={styles.iconBox}>
+              <Ionicons name="shield-checkmark-outline" size={20} color="#fff" />
             </View>
-            <Text style={styles.menuText}>Privacidad y Seguridad</Text>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
+            <Text style={styles.menuText}>Privacidad y seguridad</Text>
+            <Ionicons name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Settings')}>
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-              <Ionicons name="help-circle-outline" size={22} color="#fff" />
+            <View style={styles.iconBox}>
+              <Ionicons name="help-circle-outline" size={20} color="#fff" />
             </View>
-            <Text style={styles.menuText}>Ayuda y Soporte</Text>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
-          </TouchableOpacity>
-        </View>
-        {__DEV__ && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🧪 Dev Tools (Demo)</Text>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                Alert.alert(
-                  'Limpiar Datos de Prueba',
-                  '¿Eliminar todos los tickets comprados y eventos creados? (Los eventos de demo se mantienen)',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    {
-                      text: 'Sí, limpiar',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await clearAllTestData();
-                        Alert.alert('✅ Listo', 'Todos los datos de prueba fueron eliminados. Recargá la app para ver los cambios.');
-                      }
-                    },
-                  ]
-                );
-              }}
-            >
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(255,157,0,0.1)' }]}>
-                <Ionicons name="trash-outline" size={22} color="#FFA500" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuText}>Limpiar Datos de Prueba</Text>
-                <Text style={styles.menuSubtext}>Elimina tickets y eventos creados</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#444" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={async () => {
-                const { data: { user: currentUser } } = await supabase.auth.getUser();
-                if (!currentUser) {
-                  Alert.alert("Error", "Debes estar logueado en Supabase");
-                  return;
-                }
-
-                Alert.alert(
-                  'Generar Eventos',
-                  '¿Crear eventos de prueba (Gotham, Boris, etc.) en la base de datos real?',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    {
-                      text: 'Sí, crear',
-                      onPress: async () => {
-                        try {
-                          await eventService.seedEvents(currentUser.id);
-                          Alert.alert('✅ Listo', 'Los eventos se han creado en Supabase. Recargá el mapa para verlos.');
-                        } catch (error) {
-                          console.error(error);
-                          Alert.alert('❌ Error', 'Hubo un problema al crear los eventos. Revisa la consola.');
-                        }
-                      }
-                    },
-                  ]
-                );
-              }}
-            >
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
-                <Ionicons name="cloud-upload-outline" size={22} color="#00D9FF" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.menuText}>Sembrar Eventos de Prueba</Text>
-                <Text style={styles.menuSubtext}>Crea Gotham, Boris, Hash, etc.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#444" />
-            </TouchableOpacity>
-          </View>
-        )}
-<View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Limpiar Datos de Prueba</Text>
-              <Text style={styles.menuSubtext}>Elimina tickets y eventos creados</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={async () => {
-              const { data: { user: currentUser } } = await supabase.auth.getUser();
-              if (!currentUser) {
-                Alert.alert("Error", "Debes estar logueado en Supabase");
-                return;
-              }
-
-              Alert.alert(
-                'Generar Eventos',
-                '¿Crear eventos de prueba (Gotham, Boris, etc.) en la base de datos real?',
-                [
-                  { text: 'Cancelar', style: 'cancel' },
-                  {
-                    text: 'Sí, crear',
-                    onPress: async () => {
-                      try {
-                        await eventService.seedEvents(currentUser.id);
-                        Alert.alert('✅ Listo', 'Los eventos se han creado en Supabase. Recargá el mapa para verlos.');
-                      } catch (error) {
-                        console.error(error);
-                        Alert.alert('❌ Error', 'Hubo un problema al crear los eventos. Revisa la consola.');
-                      }
-                    }
-                  },
-                ]
-              );
-            }}
-          >
-            <View style={[styles.iconBox, { backgroundColor: 'rgba(0, 217, 255, 0.1)' }]}>
-              <Ionicons name="cloud-upload-outline" size={22} color="#00D9FF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.menuText}>Sembrar Eventos de Prueba</Text>
-              <Text style={styles.menuSubtext}>Crea Gotham, Boris, Hash, etc.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#444" />
+            <Text style={styles.menuText}>Ayuda y soporte</Text>
+            <Ionicons name="chevron-forward" size={20} color="#555" />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color="#FF4444" />
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#FF5A5A" />
+          <Text style={styles.logoutText}>Cerrar sesión</Text>
         </TouchableOpacity>
 
-        <View style={styles.footer}>
-          <Text style={styles.versionText}>TiQly v1.0.0 (MVP Demo)</Text>
-        </View>
+        <Text style={styles.versionText}>TiQly v1.0.0</Text>
       </ScrollView>
 
-      {/* 📝 Edit Profile Modal */}
       <Modal
         visible={editModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setEditModalVisible(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Editar Perfil</Text>
+              <Text style={styles.modalTitle}>Editar perfil</Text>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#fff" />
+                <Ionicons name="close" size={26} color="#fff" />
               </TouchableOpacity>
             </View>
 
-            {/* Avatar Editor */}
             <TouchableOpacity style={styles.avatarEditor} onPress={pickImage}>
               <Image source={{ uri: editAvatar || avatarUri }} style={styles.editAvatarImage} />
               <View style={styles.avatarOverlay}>
-                <Ionicons name="camera" size={28} color="#fff" />
+                <Ionicons name="camera" size={22} color="#fff" />
                 <Text style={styles.avatarOverlayText}>Cambiar foto</Text>
               </View>
             </TouchableOpacity>
 
-            {/* Name Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nombre</Text>
+              <Text style={styles.inputoabel}>Nombre</Text>
               <TextInput
                 style={styles.input}
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Tu nombre"
-                placeholderTextColor="#555"
+                placeholderTextColor="#666"
               />
             </View>
 
-            {/* Phone Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Teléfono</Text>
+              <Text style={styles.inputoabel}>Teléfono</Text>
               <TextInput
                 style={styles.input}
                 value={editPhone}
                 onChangeText={setEditPhone}
                 placeholder="+54 11 1234 5678"
-                placeholderTextColor="#555"
+                placeholderTextColor="#666"
                 keyboardType="phone-pad"
               />
             </View>
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-              <Text style={styles.saveButtonText}>Guardar Cambios</Text>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} disabled={savingProfile}>
+              {savingProfile ? <ActivityIndicator color="#000" /> : <Text style={styles.saveButtonText}>Guardar cambios</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* 🔐 Password Change Modal */}
       <Modal
         visible={passwordModalVisible}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setPasswordModalVisible(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cambiar Contraseña</Text>
+              <Text style={styles.modalTitle}>Cambiar contraseña</Text>
               <TouchableOpacity onPress={() => setPasswordModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#fff" />
+                <Ionicons name="close" size={26} color="#fff" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contraseña Actual</Text>
-              <View style={styles.passwordInputRow}>
+              <Text style={styles.inputoabel}>Nueva contraseña</Text>
+              <View style={styles.passwordRow}>
                 <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor="#555"
+                  style={[styles.input, styles.passwordInput]}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Mínimo 8 caracteres"
+                  placeholderTextColor="#666"
                   secureTextEntry={!showPasswords}
                 />
-                <TouchableOpacity onPress={() => setShowPasswords(!showPasswords)}>
-                  <Ionicons name={showPasswords ? "eye-off" : "eye"} size={22} color="#666" />
+                <TouchableOpacity onPress={() => setShowPasswords((prev) => !prev)}>
+                  <Ionicons name={showPasswords ? 'eye-off' : 'eye'} size={22} color="#999" />
                 </TouchableOpacity>
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nueva Contraseña</Text>
-              <TextInput
-                style={styles.input}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                placeholder="Mínimo 8 caracteres"
-                placeholderTextColor="#555"
-                secureTextEntry={!showPasswords}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Confirmar Contraseña</Text>
+              <Text style={styles.inputoabel}>Confirmar contraseña</Text>
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                placeholder="Repetí la nueva contraseña"
-                placeholderTextColor="#555"
+                placeholder="Repetí la contraseña"
+                placeholderTextColor="#666"
                 secureTextEntry={!showPasswords}
               />
             </View>
 
-            <TouchableOpacity style={styles.forgotPassword}>
-              <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword}>
-              <Text style={styles.saveButtonText}>Actualizar Contraseña</Text>
+            <TouchableOpacity style={styles.saveButton} onPress={handleChangePassword} disabled={changingPassword}>
+              {changingPassword ? <ActivityIndicator color="#000" /> : <Text style={styles.saveButtonText}>Actualizar contraseña</Text>}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </Modal>
-
-      {/* 💳 Add Card Modal */}
-      <Modal
-        visible={addCardModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setAddCardModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Agregar Tarjeta</Text>
-              <TouchableOpacity onPress={() => setAddCardModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.cardPreview}>
-              <View style={styles.cardPreviewTop}>
-                <Ionicons name="card" size={32} color="#00D9FF" />
-                <Text style={styles.cardPreviewBrand}>VISA</Text>
-              </View>
-              <Text style={styles.cardPreviewNumber}>•••• •••• •••• ••••</Text>
-              <View style={styles.cardPreviewBottom}>
-                <View>
-                  <Text style={styles.cardPreviewLabel}>TITULAR</Text>
-                  <Text style={styles.cardPreviewValue}>{user?.name?.toUpperCase() || 'TU NOMBRE'}</Text>
-                </View>
-                <View>
-                  <Text style={styles.cardPreviewLabel}>VENCE</Text>
-                  <Text style={styles.cardPreviewValue}>MM/AA</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.secureNote}>
-              <Ionicons name="shield-checkmark" size={20} color="#00FF9D" />
-              <Text style={styles.secureNoteText}>
-                Tus datos están protegidos con encriptación de nivel bancario
-              </Text>
-            </View>
-
-            <TouchableOpacity style={styles.saveButton} onPress={handleAddCard}>
-              <Text style={styles.saveButtonText}>Agregar con Mercado Pago</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -699,399 +437,276 @@ const ProfileScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#050505',
   },
   content: {
-    paddingBottom: 120,
+    padding: 20,
+    paddingBottom: 36,
   },
-  header: {
+  headerCard: {
+    backgroundColor: '#0F1013',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 217, 255, 0.16)',
+    padding: 24,
     alignItems: 'center',
-    paddingVertical: 40,
   },
   avatarContainer: {
     position: 'relative',
     marginBottom: 16,
   },
   avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    borderWidth: 2,
     borderColor: '#00D9FF',
   },
-  editAvatar: {
+  editAvatarButton: {
     position: 'absolute',
-    bottom: 0,
-    right: 5,
+    right: 4,
+    bottom: 4,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#00D9FF',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#000',
+    justifyContent: 'center',
   },
   userName: {
     color: '#fff',
     fontSize: 24,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '800',
   },
   userEmail: {
-    color: '#666',
-    fontSize: 16,
+    color: '#9BA1AE',
     marginTop: 4,
   },
   userPhone: {
-    color: '#00D9FF',
-    fontSize: 14,
-    marginTop: 8,
+    color: '#D5D9E0',
+    marginTop: 4,
+  },
+  levelContainer: {
+    width: '100%',
+    marginTop: 18,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#111',
-    marginHorizontal: 20,
-    paddingVertical: 20,
+    marginTop: 18,
+    backgroundColor: '#0F1013',
     borderRadius: 20,
-    marginBottom: 32,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 18,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
   statValue: {
-    color: '#00D9FF',
-    fontSize: 24,
-    fontWeight: '900',
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
   },
   statLabel: {
-    color: '#666',
+    color: '#777F8C',
     fontSize: 12,
-    marginTop: 4,
-    fontWeight: 'bold',
     textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   verticalDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: '#222',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   section: {
-    paddingHorizontal: 20,
-    marginBottom: 32,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginTop: 20,
+    backgroundColor: '#0F1013',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    padding: 18,
   },
   sectionTitle: {
-    color: '#444',
-    fontSize: 13,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 16,
-    marginLeft: 4,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,217,255,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  addButtonText: {
-    color: '#00D9FF',
-    fontSize: 13,
-    fontWeight: '700',
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 14,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    paddingVertical: 12,
   },
   iconBox: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginRight: 14,
+  },
+  iconBlue: {
+    backgroundColor: 'rgba(0, 217, 255, 0.08)',
+  },
+  iconGreen: {
+    backgroundColor: 'rgba(0, 255, 157, 0.08)',
+  },
+  menuCopy: {
+    flex: 1,
   },
   menuText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     flex: 1,
   },
   menuSubtext: {
-    color: '#666',
-    fontSize: 12,
+    color: '#7E8795',
     marginTop: 2,
+    fontSize: 12,
   },
-  // Payment Methods
-  emptyPayment: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#222',
-    borderStyle: 'dashed',
-  },
-  emptyPaymentText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 12,
-  },
-  emptyPaymentSubtext: {
-    color: '#444',
-    fontSize: 13,
-    marginTop: 4,
-  },
-  cardItem: {
+  infoCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    padding: 16,
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(0, 217, 255, 0.06)',
     borderRadius: 16,
-    marginBottom: 8,
+    padding: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+    borderColor: 'rgba(0, 217, 255, 0.14)',
+    gap: 12,
   },
-  cardItemDefault: {
-    borderColor: 'rgba(0,217,255,0.3)',
-    backgroundColor: 'rgba(0,217,255,0.03)',
+  infoCopy: {
+    flex: 1,
   },
-  cardIcon: {
-    width: 48,
-    height: 32,
-    backgroundColor: 'rgba(0,217,255,0.1)',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  cardNumber: {
+  infoTitle: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  cardExpiry: {
-    color: '#666',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  defaultBadge: {
-    backgroundColor: 'rgba(0,217,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  defaultBadgeText: {
-    color: '#00D9FF',
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: '700',
   },
-  deleteCardBtn: {
-    padding: 8,
+  infoText: {
+    color: '#9ABACA',
+    marginTop: 4,
+    lineHeight: 18,
   },
-  logoutBtn: {
+  logoutButton: {
+    marginTop: 22,
+    backgroundColor: '#0F1013',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 90, 90, 0.18)',
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 68, 68, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 68, 68, 0.1)',
+    gap: 10,
   },
   logoutText: {
-    color: '#FF4444',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 40,
+    color: '#FF5A5A',
+    fontSize: 15,
+    fontWeight: '700',
   },
   versionText: {
-    color: '#222',
+    color: '#5D6673',
+    textAlign: 'center',
+    marginTop: 18,
     fontSize: 12,
-    fontWeight: 'bold',
   },
-  // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
+    backgroundColor: 'rgba(0,0,0,0.78)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#111',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
+    backgroundColor: '#111317',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'space-between',
+    marginBottom: 18,
   },
   modalTitle: {
     color: '#fff',
-    fontSize: 22,
-    fontWeight: '900',
+    fontSize: 20,
+    fontWeight: '800',
   },
   avatarEditor: {
     alignSelf: 'center',
-    marginBottom: 24,
-    position: 'relative',
+    marginBottom: 20,
   },
   editAvatarImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
   },
   avatarOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    borderRadius: 60,
-    justifyContent: 'center',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    borderBottomLeftRadius: 52,
+    borderBottomRightRadius: 52,
   },
   avatarOverlayText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 2,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
-  inputLabel: {
-    color: '#666',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+  inputoabel: {
+    color: '#C8D0DB',
     marginBottom: 8,
-    marginLeft: 4,
-  },
-  input: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 12,
-    padding: 16,
-    color: '#fff',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  passwordInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 12,
-    paddingRight: 16,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  forgotPassword: {
-    alignSelf: 'center',
-    marginBottom: 24,
-  },
-  forgotPasswordText: {
-    color: '#00D9FF',
-    fontSize: 14,
     fontWeight: '600',
   },
-  saveButton: {
-    backgroundColor: '#00D9FF',
-    padding: 18,
-    borderRadius: 16,
+  input: {
+    backgroundColor: '#0A0C0F',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#fff',
+    fontSize: 15,
+  },
+  passwordRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#0A0C0F',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    paddingRight: 14,
+  },
+  passwordInput: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  saveButton: {
+    marginTop: 8,
+    backgroundColor: '#00D9FF',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonText: {
     color: '#000',
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  // Card Preview
-  cardPreview: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(0,217,255,0.2)',
-  },
-  cardPreviewTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  cardPreviewBrand: {
-    color: '#00D9FF',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  cardPreviewNumber: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    marginBottom: 24,
-  },
-  cardPreviewBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  cardPreviewLabel: {
-    color: '#666',
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  cardPreviewValue: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  secureNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(0,255,157,0.05)',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 24,
-  },
-  secureNoteText: {
-    color: '#666',
-    fontSize: 12,
-    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
   },
 });
 

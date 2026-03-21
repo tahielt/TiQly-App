@@ -9,7 +9,7 @@
  * - Haptic feedback
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -28,10 +28,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { createResaleListing, calculateResaleFees } from '../../services/resaleService';
+import { DEFAULT_RESALE_FEE_PCT, getPlatformConfig } from '../../services/monetizationService';
 import { useSelector } from 'react-redux';
 
 interface RouteParams {
-    orderId: string;
+    ticketId: string;
     ticketInfo: {
         eventTitle: string;
         eventDate: string;
@@ -47,15 +48,25 @@ const CreateResaleScreen: React.FC = () => {
 
     const [askingPrice, setAskingPrice] = useState('');
     const [loading, setLoading] = useState(false);
+    const [resaleFeePct, setResaleFeePct] = useState(DEFAULT_RESALE_FEE_PCT);
 
     // Get user from Redux state
     const user = useSelector((state: any) => state.auth?.user);
 
+    useEffect(() => {
+        const loadConfig = async () => {
+            const config = await getPlatformConfig();
+            setResaleFeePct(config.resaleFeePct);
+        };
+
+        loadConfig();
+    }, []);
+
     // Calculate fees in real-time
     const fees = useMemo(() => {
         const price = parseFloat(askingPrice) || 0;
-        return calculateResaleFees(price);
-    }, [askingPrice]);
+        return calculateResaleFees(price, resaleFeePct);
+    }, [askingPrice, resaleFeePct]);
 
     const formatCurrency = (amount: number) => {
         return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -84,7 +95,7 @@ const CreateResaleScreen: React.FC = () => {
 
         try {
             await createResaleListing({
-                orderId: params.orderId,
+                ticketId: params.ticketId,
                 askingPrice: parseFloat(askingPrice),
                 expiresInDays: 30
             }, user.id);
@@ -174,10 +185,10 @@ const CreateResaleScreen: React.FC = () => {
 
                             <View style={styles.feeRow}>
                                 <View style={styles.feeWithInfo}>
-                                    <Text style={styles.feeLabel}>Comisión TiQly (10%)</Text>
+                                    <Text style={styles.feeLabel}>Fee TiQly al comprador ({Math.round(resaleFeePct * 100)}%)</Text>
                                     <Ionicons name="information-circle-outline" size={14} color="#666" />
                                 </View>
-                                <Text style={styles.feeValueNegative}>-{formatCurrency(fees.sellerCommission)}</Text>
+                                <Text style={styles.feeValue}>+{formatCurrency(fees.platformFee)}</Text>
                             </View>
 
                             <View style={styles.divider} />
@@ -190,7 +201,7 @@ const CreateResaleScreen: React.FC = () => {
                             <View style={styles.buyerNote}>
                                 <Ionicons name="information-circle" size={16} color="#00FFFF" />
                                 <Text style={styles.buyerNoteText}>
-                                    El comprador pagará {formatCurrency(fees.buyerPays)} (+5% service fee)
+                                    Vos recibís {formatCurrency(fees.sellerReceives)}. El comprador pagará {formatCurrency(fees.buyerPays)} con el fee TiQly ya incluido.
                                 </Text>
                             </View>
                         </BlurView>
@@ -459,3 +470,5 @@ const styles = StyleSheet.create({
 });
 
 export default CreateResaleScreen;
+
+

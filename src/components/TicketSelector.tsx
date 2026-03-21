@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated }
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import { DEFAULT_PRIMARY_FEE_PCT, roundMoney } from '../services/monetizationService';
 
 const { width } = Dimensions.get('window');
 
@@ -64,7 +65,7 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({
     onClose,
     onSelect,
     tiers = [],
-    feePercentage = 0
+    feePercentage = DEFAULT_PRIMARY_FEE_PCT
 }) => {
     const [selectedTierIndex, setSelectedTierIndex] = useState(0);
     const shadowAnim = useRef(new Animated.Value(0.5)).current;
@@ -110,8 +111,8 @@ const TicketSelector: React.FC<TicketSelectorProps> = ({
 
     if (!visible || !selectedTier) return null;
 
-    const serviceFee = Math.round(selectedTier.price * Math.max(feePercentage, 0));
-    const total = selectedTier.price + serviceFee;
+    const serviceFee = roundMoney(selectedTier.price * Math.max(feePercentage, 0));
+    const total = roundMoney(selectedTier.price + serviceFee);
     const hasServiceFee = serviceFee > 0;
 
     return (
@@ -374,4 +375,5 @@ const styles = StyleSheet.create({
 });
 
 export default TicketSelector;
+
 

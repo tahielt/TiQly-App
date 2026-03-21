@@ -1,12 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { Ticket, TicketTransfer, TicketValidation, PurchaseData } from '../types/ticket';
 import * as Crypto from 'expo-crypto';
+import { DEFAULT_PRIMARY_FEE_PCT, DEFAULT_RESALE_FEE_PCT } from './monetizationService';
 
 // Re-export types for convenience
 export type { TicketTransfer } from '../types/ticket';
 
-// Platform fee percentage (0% - no fees)
-export const PLATFORM_FEE_PERCENTAGE = 0;
+// Default platform fee percentage fallback. Real pricing comes from platform_config.
+export const PLATFORM_FEE_PERCENTAGE = DEFAULT_PRIMARY_FEE_PCT;
 
 // Generate unique QR code for ticket
 const generateQRCode = async (ticketId: string, userId: string, eventId: string): Promise<string> => {
@@ -47,12 +48,14 @@ export const purchaseTicket = async (
     throw new Error(error.message || 'No se pudo procesar la compra');
   }
 
-  const ticketResponse = data?.ticket;
+  const ticketResponse = data?.tickets?.[0] || data?.ticket;
   if (!ticketResponse?.id) {
     throw new Error('Respuesta inválida del servidor');
   }
 
-  const pricePaid = Number(ticketResponse.pricePaid ?? data?.pricing?.finalAmount ?? purchaseData.finalAmount ?? 0);
+  const pricePaid = Number(ticketResponse.pricePaid ?? data?.pricing?.unitFinalAmount ?? data?.pricing?.finalAmount ?? purchaseData.finalAmount ?? 0);
+  const basePrice = Number(ticketResponse.basePrice ?? data?.pricing?.unitBasePrice ?? purchaseData.totalAmount ?? 0);
+  const platformFee = Number(ticketResponse.platformFee ?? data?.pricing?.unitFeeAmount ?? purchaseData.platformFee ?? 0);
   const purchaseDate = ticketResponse.purchaseDate ? new Date(ticketResponse.purchaseDate) : new Date();
 
   return {
@@ -64,16 +67,19 @@ export const purchaseTicket = async (
     userId: userId,
     userName: userName,
     userEmail: userEmail,
-    ticketTypeId: ticketResponse.ticketTypeId || purchaseData.ticketTypeId || '',
-    ticketTypeName: ticketResponse.ticketTypeName || eventData.ticketTypeName || 'General',
+    ticketTypeId: ticketResponse.ticketTypeId || data?.ticketType?.id || purchaseData.ticketTypeId || '',
+    ticketTypeName: ticketResponse.ticketTypeName || data?.ticketType?.name || eventData.ticketTypeName || 'General',
     price: pricePaid,
+    basePrice,
+    platformFee,
+    saleChannel: ticketResponse.saleChannel || 'primary',
     qrCode: ticketResponse.qrCode || '',
     status: 'active',
     purchaseDate,
     transferHistory: [],
     originalOwnerId: userId,
     createdAt: ticketResponse.createdAt ? new Date(ticketResponse.createdAt) : purchaseDate,
-    updatedAt: ticketResponse.createdAt ? new Date(ticketResponse.createdAt) : purchaseDate
+    updatedAt: ticketResponse.createdAt ? new Date(ticketResponse.createdAt) : purchaseDate,
   };
 };
 /**
@@ -124,7 +130,7 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
       .eq('user_id', userId)
       .order('purchase_date', { ascending: false });
 
-    data = fallback.data;
+    data = fallback.data as any;
     error = fallback.error;
   }
 
@@ -145,6 +151,9 @@ export const getUserTickets = async (userId: string): Promise<Ticket[]> => {
     ticketTypeId: row.ticket_type_id || '',
     ticketTypeName: row.ticket_type?.name || 'General',
     price: row.price_paid,
+    basePrice: row.base_price,
+    platformFee: row.platform_fee,
+    saleChannel: row.sale_channel,
     qrCode: row.qr_code,
     status: row.status,
     purchaseDate: new Date(row.purchase_date),
@@ -209,7 +218,7 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
       .eq('id', ticketId)
       .single();
 
-    data = fallback.data;
+    data = fallback.data as any;
     error = fallback.error;
   }
 
@@ -232,6 +241,9 @@ export const getTicketById = async (ticketId: string): Promise<Ticket | null> =>
     ticketTypeId: data.ticket_type_id || '',
     ticketTypeName: data.ticket_type?.name || 'General',
     price: data.price_paid,
+    basePrice: data.base_price,
+    platformFee: data.platform_fee,
+    saleChannel: data.sale_channel,
     qrCode: data.qr_code,
     status: data.status,
     purchaseDate: new Date(data.purchase_date),
@@ -248,6 +260,9 @@ export const getEventTicketSales = async (eventId: string) => {
   const selectWithType = `
       id,
       price_paid,
+      base_price,
+      platform_fee,
+      sale_channel,
       purchase_date,
       user_id,
       ticket_type_id,
@@ -263,6 +278,9 @@ export const getEventTicketSales = async (eventId: string) => {
   const selectBasic = `
       id,
       price_paid,
+      base_price,
+      platform_fee,
+      sale_channel,
       purchase_date,
       user_id,
       ticket_type_id,
@@ -285,7 +303,7 @@ export const getEventTicketSales = async (eventId: string) => {
       .eq('event_id', eventId)
       .order('purchase_date', { ascending: false });
 
-    data = fallback.data;
+    data = fallback.data as any;
     error = fallback.error;
   }
 
@@ -300,6 +318,9 @@ export const getEventTicketSales = async (eventId: string) => {
     email: row.user?.email || '',
     ticketType: row.ticket_type?.name || 'General',
     price: row.price_paid || 0,
+    basePrice: row.base_price || 0,
+    platformFee: row.platform_fee || 0,
+    saleChannel: row.sale_channel || 'primary',
     date: row.purchase_date || row.created_at,
   }));
 };
@@ -554,7 +575,7 @@ export interface TicketListing {
 }
 
 // Platform fee for resales (10%)
-export const RESALE_FEE_PERCENTAGE = 0.10;
+export const RESALE_FEE_PERCENTAGE = DEFAULT_RESALE_FEE_PCT;
 // Max markup allowed (150% of original)
 export const MAX_MARKUP_PERCENTAGE = 1.5;
 
@@ -851,6 +872,10 @@ export default {
   RESALE_FEE_PERCENTAGE,
   MAX_MARKUP_PERCENTAGE,
 };
+
+
+
+
 
 
 
