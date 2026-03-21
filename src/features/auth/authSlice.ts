@@ -1,41 +1,47 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { User, AuthState, LoginCredentials } from '../../types/auth';
 import { UserRole } from '../../types/navigation';
-import StorageService from '../../services/storage';
+// import StorageService from '../../services/storage'; // @deprecated for auth, managed by supabase
+import { supabase } from '../../lib/supabase';
 
 const initialState: AuthState = {
-  user: {
-    id: '1',
-    email: 'demo@tiqly.app',
-    name: 'Tahiel Mocha',
-    roles: ['attendee'],
-    activeRole: 'attendee',
-    token: 'mock-token'
-  },
+  user: null,
   isLoading: false,
   error: null,
-  isAuthenticated: true,
+  isAuthenticated: false,
 };
 
 // Acciones asíncronas
+
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
-      // Call a la API de autenticación
-      const mockUser: User = {
-        id: '1',
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
-        name: 'Tahiel Mocha',
-        roles: ['attendee'],
-        activeRole: 'attendee',
-        token: 'mock-token-123'
-      };
+        password: credentials.password
+      });
 
-      await StorageService.saveAuthData(mockUser);
-      return mockUser;
-    } catch (error) {
-      return rejectWithValue('Error al iniciar sesión');
+      if (error) {
+        return rejectWithValue(error.message);
+      }
+
+      if (data.session && data.user) {
+        // Map Supabase user to App user
+        // Note: You might want to fetch additional role info from a 'profiles' table later
+        const appUser: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.full_name || 'Usuario',
+          roles: ['attendee'], // Default role for now
+          activeRole: 'attendee',
+          token: data.session.access_token
+        };
+        return appUser;
+      }
+      return rejectWithValue('No session created');
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Error al iniciar sesión');
     }
   }
 );
@@ -44,8 +50,22 @@ export const checkAuthStatus = createAsyncThunk(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const user = await StorageService.getAuthData();
-      return user;
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) return rejectWithValue(error.message);
+
+      if (session && session.user) {
+        const appUser: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || 'Usuario',
+          roles: ['attendee'],
+          activeRole: 'attendee',
+          token: session.access_token
+        };
+        return appUser;
+      }
+      return null; // No user logged in
     } catch (error) {
       return rejectWithValue('Error al verificar autenticación');
     }
@@ -56,10 +76,11 @@ export const logoutUser = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await StorageService.removeAuthData();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       return true;
-    } catch (error) {
-      return rejectWithValue('Error al cerrar sesión');
+    } catch (error: any) {
+      return rejectWithValue(error.message);
     }
   }
 );
@@ -71,8 +92,6 @@ const authSlice = createSlice({
     setActiveRole: (state, action: PayloadAction<UserRole>) => {
       if (state.user) {
         state.user.activeRole = action.payload;
-        // Actualizar también en el almacenamiento
-        StorageService.saveAuthData(state.user);
       }
     },
     clearError: (state) => {
@@ -104,11 +123,15 @@ const authSlice = createSlice({
       if (action.payload) {
         state.user = action.payload;
         state.isAuthenticated = true;
+      } else {
+        state.isAuthenticated = false;
+        state.user = null;
       }
     });
     builder.addCase(checkAuthStatus.rejected, (state) => {
       state.isLoading = false;
       state.isAuthenticated = false;
+      state.user = null;
     });
 
     // Logout
