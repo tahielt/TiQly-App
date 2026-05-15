@@ -32,8 +32,7 @@ const MyEventsScreen = () => {
 
     const loadMyEvents = async () => {
         const allEvents = await getEvents();
-        // Filter to only show events created by this user (mock: match organizerId)
-        const myEvents = allEvents.filter(e => e.organizerId === 'org_1'); // Mock: use fixed org ID
+        const myEvents = allEvents.filter(e => e.organizerId === 'org_1'); 
         setEvents(myEvents);
     };
 
@@ -46,14 +45,13 @@ const MyEventsScreen = () => {
     };
 
     const handleScanQR = () => {
-        navigation.navigate('Tickets'); // Goes to OrgTicketsStack which has scanner
+        navigation.navigate('Tickets'); 
     };
 
     const renderEventItem = ({ item }: { item: any }) => (
         <View style={styles.card}>
             <Image source={{ uri: item.coverImage }} style={styles.cardImage} />
 
-            {/* Stats Overlay */}
             <View style={styles.statsOverlay}>
                 <View style={styles.statItem}>
                     <Text style={styles.statValue}>23</Text>
@@ -91,7 +89,6 @@ const MyEventsScreen = () => {
                     <Text style={styles.location}>{item.location?.address}</Text>
                 </View>
 
-                {/* Actions */}
                 <View style={styles.actionsRow}>
                     <TouchableOpacity
                         style={styles.actionBtn}
@@ -132,7 +129,7 @@ const MyEventsScreen = () => {
                 style={styles.createBtn}
                 onPress={() => navigation.navigate('CreateEvent')}
             >
-                <Text style={styles.createBtnText}>Crear mi primer evento</Text>
+                <Text style={styles.createBtnText}>Crear evento</Text>
             </TouchableOpacity>
         </View>
     );
@@ -141,7 +138,6 @@ const MyEventsScreen = () => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="light-content" />
 
-            {/* Header */}
             <View style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>Mis Eventos</Text>
