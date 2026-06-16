@@ -1,0 +1,9 @@
+# Configuración local del CLI de Supabase.
+# Importante: el webhook de MP es público (MP no manda JWT).
+project_id = "tiqly"
+
+[functions.create-order]
+verify_jwt = true
+
+[functions.mp-webhook]
+verify_jwt = false
