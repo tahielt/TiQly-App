@@ -1,0 +1,4 @@
+packages:
+  - 'packages/*'
+  # Fase 2 de la migración monorepo (cuando la app se mueva):
+  # - 'apps/*'

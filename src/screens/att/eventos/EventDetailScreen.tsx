@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { eventService } from '../../../services/eventService';
-import { purchaseTicket } from '../../../services/ticketService';
+import { startCheckout, openMercadoPagoCheckout, waitForPayment } from '../../../services/checkoutService';
 import { notifyTicketPurchase } from '../../../services/notificationService';
 import { supabase } from '../../../lib/supabase';
 import { Event } from '../../../types/event';
@@ -77,57 +77,59 @@ const EventDetailScreen = () => {
             return;
         }
 
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setPurchasing(true);
         try {
-            // Get current authenticated user
+            // Sesión requerida (la Edge Function igual valida el JWT)
             const { data: { user: currentUser } } = await supabase.auth.getUser();
             if (!currentUser) {
-                Alert.alert('Error', 'Debes iniciar sesión para comprar.');
+                Alert.alert('Iniciá sesión', 'Necesitás una cuenta para comprar entradas.');
                 setPurchasing(false);
                 return;
             }
 
-            // Create purchase data using tier price
-            const basePrice = tier.price;
-            const platformFee = basePrice * 0.15; // 15% fee
-            const purchaseData = {
-                eventId: event.id,
-                ticketTypeId: tier.id || '',
-                quantity: 1,
-                totalAmount: basePrice,
-                platformFee: platformFee,
-                finalAmount: basePrice + platformFee
-            };
+            if (!tier.id) {
+                Alert.alert('No disponible', 'Este tipo de entrada todavía no está a la venta online.');
+                setPurchasing(false);
+                return;
+            }
 
-            // Call real ticketService (Supabase)
-            await purchaseTicket(
-                purchaseData,
-                currentUser.id,
-                currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Usuario',
-                currentUser.email || '',
-                {
-                    title: event.title,
-                    date: new Date(event.startDate),
-                    location: event.location?.address || 'Sin dirección'
-                }
-            );
+            // 1. Hold atómico de stock + precio calculado server-side (Edge Function)
+            const session = await startCheckout(tier.id, 1);
 
-            await notifyTicketPurchase(event.title, tier.name, new Date(event.startDate));
+            // 2. Checkout de Mercado Pago (app de MP si está instalada, o navegador)
+            await openMercadoPagoCheckout(session);
 
+            // 3. El webhook confirma el pago y emite los tickets; acá solo se observa
+            const outcome = await waitForPayment(session.order_id);
             setPurchasing(false);
-            Alert.alert(
-                '¡Compra Exitosa!',
-                `Tu entrada ${tier.name} ha sido guardada. Ve a Mis Tickets para ver tu QR.`,
-                [
-                    { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
-                    { text: 'OK' }
-                ]
-            );
-        } catch (error) {
+
+            if (outcome === 'paid') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                await notifyTicketPurchase(event.title, tier.name, new Date(event.startDate));
+                Alert.alert(
+                    '¡Compra confirmada!',
+                    `Tu entrada ${tier.name} ya está en Mis Tickets.`,
+                    [
+                        { text: 'Ver Tickets', onPress: () => navigation.navigate('MainTabs', { screen: 'Tickets' }) },
+                        { text: 'OK' }
+                    ]
+                );
+            } else if (outcome === 'pending') {
+                Alert.alert(
+                    'Pago en proceso',
+                    'Si completaste el pago, tu entrada va a aparecer en Mis Tickets apenas se acredite.'
+                );
+            } else {
+                Alert.alert(
+                    'Compra no completada',
+                    'El pago no se concretó y la reserva se liberó. Podés intentar de nuevo.'
+                );
+            }
+        } catch (error: any) {
             console.error('Purchase error:', error);
             setPurchasing(false);
-            Alert.alert('Error', 'No se pudo procesar la compra. Intenta de nuevo.');
+            Alert.alert('No se pudo iniciar la compra', error?.userMessage ?? 'Intentá de nuevo en unos segundos.');
         }
     };
 

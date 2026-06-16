@@ -157,6 +157,8 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  packages/core: {}
+
 packages:
 
   '@0no-co/graphql.web@1.2.0':
